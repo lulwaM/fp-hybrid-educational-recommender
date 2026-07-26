@@ -1,5 +1,3 @@
-#INITIAL, pasted from prototype. will adjust to work with real dataset
-
 # for data storage
 import pandas as pd
 
@@ -8,13 +6,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # recommender scores 2: collaborative filtering
 # input: student id to make targetted recommendations and interactions df to see similar students, output: dataframe with columns=resource id and collaborative filtering score
-def collaborative_scores(id_student, interactions):
+def collaborative_scores(id_student, interaction_data):
 
     # workflow code inspiration from: https://www.dasca.org/world-of-data-science/article/the-ultimate-guide-to-building-recommendation-systems-in-python
 
     # new dataframe where columns = resource id, rows = student id, values= clicks
-    user_item_matrix = interactions.pivot_table(
-        values="sum_click", index="id_student", columns="id_site", fill_value=0
+    user_item_matrix = interaction_data.pivot_table(
+        values="total_resource_clicks", index="id_student", columns="id_site", fill_value=0
     )
 
     # matrix returned here each value indicates level of similarity to student row
@@ -31,7 +29,7 @@ def collaborative_scores(id_student, interactions):
     # cold start mitigation: new student, does not have interactions with resources
     if id_student not in user_item_matrix.index:
         # empty dataframe, no collabarative score
-        return pd.DataFrame(columns=["id_site", "collaborative_score"])
+        return pd.DataFrame(columns=["id_site","code_module","code_presentation","activity_type","collaborative_score"])
 
     # continued workflow code inspiration from: https://www.dasca.org/world-of-data-science/article/the-ultimate-guide-to-building-recommendation-systems-in-python
 
@@ -66,5 +64,19 @@ def collaborative_scores(id_student, interactions):
         scores["collaborative_score"] = (
             scores["collaborative_score"] / scores["collaborative_score"].max()
         )
+
+    # include resource details like code module/presentation in recommender function
+    #first get list of resource details with no duplicates
+    resource_details = interaction_data[["id_site","code_module","code_presentation","activity_type"]].drop_duplicates()
+
+    #merge these details with the final resource scores
+    scores = scores.merge(resource_details, on="id_site",how="left")
+
+
+    #display highest score first, drop old indices for cleaner display
+    scores = scores.sort_values(by="collaborative_score", ascending=False).reset_index(drop=True)
+
+    #re-organize columns to be consistent with other recommender outputs
+    scores = scores[["id_site","code_module","code_presentation","activity_type","collaborative_score"]]
 
     return scores

@@ -46,7 +46,7 @@ def merge_datasets(datasets):
 def clean_datasets(datasets):
 
     # not directly editing variable, makign copy of dictionary via loop (good practice)
-    cleaned_datasets = {key:dataframe.copy for key,dataframe in datasets.items()}
+    cleaned_datasets = {key:dataframe.copy() for key,dataframe in datasets.items()}
 
     # 1. handling duplicate values
     cleaned_datasets["student_data"] = cleaned_datasets["student_data"].drop_duplicates()
@@ -95,7 +95,7 @@ def clean_datasets(datasets):
 def typecasting_datasets(datasets):
 
     # not directly editing variable, makign copy of dictionary via loop (good practice)
-    typecast_datasets = {key:dataframe.copy for key,dataframe in datasets.items()}
+    typecast_datasets = {key:dataframe.copy() for key,dataframe in datasets.items()}
 
     #first is student data
 
@@ -146,9 +146,9 @@ def typecasting_datasets(datasets):
 def processing_datasets(datasets):
 
     # not directly editing variable, makign copy of dictionary via loop (good practice)
-    processed_datasets = {key:dataframe.copy for key,dataframe in datasets.items()}
+    processed_datasets = {key:dataframe.copy() for key,dataframe in datasets.items()}
 
-    #first for student data
+    #first for student data 
 
     #obtain registration duration
     processed_datasets["student_data"]["registration_duration"] = processed_datasets["student_data"]["date_unregistration"] - processed_datasets["student_data"]["date_registration"]

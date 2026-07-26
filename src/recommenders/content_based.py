@@ -9,25 +9,14 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 # recommender scores 3: content based filtering
 # input: student id to make targetted recommendations, interactions df to see similar students, and resources df to view similar resources, output: dataframe with columns=resource id and content based filtering score
-def content_scores(id_student,resources, interactions):
+def content_scores(id_student,resource_data, interaction_data):
 
     # text conversion code inspiration from: https://medium.com/@sumanadhikari/building-a-movie-recommendation-engine-using-scikit-learn-8dbb11c5aa4b
-
-    # store course text features in one to be vectorized (add space to maintain word meaning)
-    resources["course_text"] = (
-        resources["title"]
-        + " "
-        + resources["code_module"]
-        + " "
-        + resources["code_presentation"]
-        + " "
-        + resources["activity_type"]
-    )
 
     # get numerical represetnation of course text, returns matrix
     # code syntax/workflow from scikit learn documentation
     vectorizer = TfidfVectorizer()
-    resource_matrix = vectorizer.fit_transform(resources["course_text"])
+    resource_matrix = vectorizer.fit_transform(resource_data["resource_text"])
 
     # end inspired code
 
@@ -37,15 +26,20 @@ def content_scores(id_student,resources, interactions):
 
     # as mentioned previously, returns matrix so convert to dataframe for easier access (both index and columns are resource id because we are comparing resources only)
     content_similarity_df = pd.DataFrame(
-        content_similarity, index=resources["id_site"], columns=resources["id_site"]
+        content_similarity, index=resource_data["id_site"], columns=resource_data["id_site"]
     )
 
     # obtain used resources row of data from student id filtering, only select the resource id column UNIQUE values (could have multiple interactions with same resource)
-    used_resources = interactions[interactions["id_student"] == id_student]["id_site"]
+    used_resources = interaction_data[interaction_data["id_student"] == id_student]["id_site"]
     used_resources = used_resources.unique()
 
     # start with empty content based scores, will populate in for loop
     scores = pd.Series(dtype=float)
+
+    #cold start mitigation, user has no interactions
+    if(len(used_resources) == 0):
+        # empty dataframe, no content based score
+        return pd.DataFrame(columns=["id_site","code_module","code_presentation","activity_type","content_score"])
 
     # iterate over each used resource of student
     # iteration code inspiration from: https://www.scaler.com/topics/machine-learning/content-based-filtering/
@@ -71,5 +65,18 @@ def content_scores(id_student,resources, interactions):
         scores["content_score"] = (
             scores["content_score"] / scores["content_score"].max()
         )
+
+    # include resource details like code module/presentation in recommender function
+    #first get list of resource details with no duplicates
+    resource_details = interaction_data[["id_site","code_module","code_presentation","activity_type"]].drop_duplicates()
+
+    #merge these details with the final resource scores
+    scores = scores.merge(resource_details, on="id_site",how="left")
+
+    #display highest score first, drop old indices for cleaner display
+    scores = scores.sort_values(by="content_score", ascending=False).reset_index(drop=True)
+
+    #re-organize columns to be consistent with other recommender outputs
+    scores = scores[["id_site","code_module","code_presentation","activity_type","content_score"]]
 
     return scores
