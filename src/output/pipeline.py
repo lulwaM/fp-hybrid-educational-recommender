@@ -2,6 +2,7 @@ from src.data_handling import preprocessing
 from src.recommenders import popularity
 from src.recommenders import collaborative
 from src.recommenders import content_based
+from src.output import evaluation
 
 # TESTING THAT BASIC RECOMMENDERS WORK INDEPENDENTLY
 
@@ -14,24 +15,31 @@ typecast_datasets = preprocessing.typecasting_datasets(cleaned_datasets)
 
 processed_datasets = preprocessing.processing_datasets(typecast_datasets)
 
-#recommender 1: popularity
-popularity_scores = popularity.popularity_scores(processed_datasets["interaction_data"])
+evaluated_student = 11391
 
-print("Popularity Recommender: \n")
-print(popularity_scores.head(5))
+def check_baselines_working():
+    #recommender 1: popularity
+    popularity_recs = popularity.popularity_scores(evaluated_student,processed_datasets["interaction_data"])
 
-# next is collaborative recommender, for student id 11391
-collaborative_scores = collaborative.collaborative_scores(11391,processed_datasets["interaction_data"])
-print("\nCollaborative Filtering Recommender: \n")
-print(collaborative_scores.head(5))
+    print("Popularity Recommender: \n")
+    print(popularity_recs.head(5))
 
-#last is content based recommender, for student id 11391
-content_scores = content_based.content_scores(11391,processed_datasets["resource_data"],processed_datasets["interaction_data"])
-print("\nContent-based Filtering Recommender: \n")
-print(content_scores.head(5))
+    # next is collaborative recommender, for student id 11391
+    collaborative_recs = collaborative.collaborative_scores(evaluated_student,processed_datasets["interaction_data"])
+    print("\nCollaborative Filtering Recommender: \n")
+    print(collaborative_recs.head(5))
 
-# next steps:
-# add cutoff logic in evaluation file,
-# create evaluation functions precision/accuracy/recall,
-# evaluate each recommenders' performance
+    #last is content based recommender, for student id 11391
+    content_recs = content_based.content_scores(evaluated_student,processed_datasets["resource_data"],processed_datasets["interaction_data"])
+    print("\nContent-based Filtering Recommender: \n")
+    print(content_recs.head(5))
 
+# check_baselines_working()
+
+#BASELINE RECOMMENDERS EVALUATION for top 20 recommendation
+k = 20
+# evaluation.evaluate_baselines_performances(history_interactions, future_interactions,processed_datasets["vle_data"],processed_datasets["resource_data"],evaluated_student,k)
+
+history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
+results, summary = evaluation.evaluate_baseline_models(history_interactions,future_interactions,processed_datasets["resource_data"],k)
+print(summary)
