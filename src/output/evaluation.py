@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+
 from src.recommenders import popularity
 from src.recommenders import collaborative
 from src.recommenders import content_based
@@ -34,8 +36,37 @@ def recall_k(relevant, recommended, k):
 
 #end copied code
 
+#function for random model to act as baseline to compare model performances
+def random_scores(id_student, interaction_data):
+
+    #only provide recommendations within the student's already taken courses, dropped duplicates as the goal is to provide a list of taken courses
+    student_courses = interaction_data[interaction_data["id_student"]==id_student][["code_module","code_presentation"]].drop_duplicates()
+
+    if(student_courses.empty):
+        #cold start users, give recommendations from all modules
+        candidate_interactions = interaction_data
+    else:
+        #otherwise only give recommendations from already taken courses
+        candidate_interactions = interaction_data.merge(student_courses, on=["code_module","code_presentation"], how="inner")
+
+
+    #possible recommendations for resources with required info, no duplicates
+    scores = candidate_interactions[["id_site","code_module","code_presentation","activity_type"]].drop_duplicates().copy()
+
+    #remove used resources to not recommend
+    used_resources = candidate_interactions[candidate_interactions["id_student"]==id_student]["id_site"]
+    scores = scores[~scores["id_site"].isin(used_resources)]
+
+    #assign random score to each rec, between 0-1 like other recommenders
+    scores["random_score"] = np.random.rand(len(scores))
+
+    #display highest score first, drop old indices for cleaner display
+    scores = scores.sort_values(by="random_score", ascending=False).reset_index(drop=True)
+
+    return scores
+
 #USED FOR SINGLE STUDENT EVALUATION
-def evaluate_baselines_performances(history_interactions,future_interactions,vle_data,resource_data,evaluated_student,k):
+def evaluate_baselines_performances(history_interactions,future_interactions,resource_data,evaluated_student,k):
 
     #items from interactions, returns series
     history_items = history_interactions[history_interactions["id_student"]==evaluated_student]["id_site"]
@@ -49,6 +80,7 @@ def evaluate_baselines_performances(history_interactions,future_interactions,vle
     eval_collaborative_recs = collaborative.collaborative_scores(evaluated_student,history_interactions)
     #note that resource data is not leaking, its simply listing the resources
     eval_content_recs = content_based.content_scores(evaluated_student,resource_data,history_interactions)
+    eval_random_recs = random_scores(evaluated_student,history_interactions)
 
     #first for popularity recommender
     popularity_recommended_items = eval_popularity_recs["id_site"].head(k)
@@ -70,7 +102,7 @@ def evaluate_baselines_performances(history_interactions,future_interactions,vle
     collaborative_recall = recall_k(relevant_items,collaborative_recommended_items,k)
     print("Recall = ",collaborative_recall)
 
-    #last is content based model
+    #next is content based model
     content_recommended_items = eval_content_recs["id_site"].head(k)
     print("\nContent-based Model Evaluation:")
 
@@ -79,6 +111,16 @@ def evaluate_baselines_performances(history_interactions,future_interactions,vle
 
     content_recall = recall_k(relevant_items,content_recommended_items,k)
     print("Recall = ",content_recall)
+
+    #final is random model (for baseline)
+    random_recommended_items = eval_random_recs["id_site"].head(k)
+    print("\nRandom Model Evaluation:")
+
+    random_precision = precision_k(relevant_items,random_recommended_items,k)
+    print("Precision = ",random_precision)
+
+    random_recall = recall_k(relevant_items,random_recommended_items,k)
+    print("Recall = ",random_recall)
 
 
 #USED FOR OVERALL EVALUATION, all eligible students
@@ -98,6 +140,7 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
     popularity_results = []
     collaborative_results = []
     content_results = []
+    random_results = []
 
     #iterate over each evaluated student (values are index,row where row is each evaluated student record with keys id/coures module/etc)
     #iteration code inspired by: https://stackoverflow.com/questions/16476924/how-can-i-iterate-over-rows-in-a-pandas-dataframe
@@ -130,6 +173,7 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
         eval_collaborative_recs = collaborative.collaborative_scores(evaluated_student["id_student"],history_interactions)
         #note that resource data is not leaking, its simply listing the resources
         eval_content_recs = content_based.content_scores(evaluated_student["id_student"],resource_data,history_interactions)
+        eval_random_recs = random_scores(evaluated_student["id_student"],history_interactions)
 
         #first for popularity recommender
         popularity_recommended_items = eval_popularity_recs["id_site"].head(k)
@@ -141,10 +185,15 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
         collaborative_precision = precision_k(relevant_items,collaborative_recommended_items,k)
         collaborative_recall = recall_k(relevant_items,collaborative_recommended_items,k)
 
-        #last is content based model
+        #next is content based model
         content_recommended_items = eval_content_recs["id_site"].head(k)
         content_precision = precision_k(relevant_items,content_recommended_items,k)
         content_recall = recall_k(relevant_items,content_recommended_items,k)
+
+        #last is random for comparison
+        random_recommended_items = eval_random_recs["id_site"].head(k)
+        random_precision = precision_k(relevant_items,random_recommended_items,k)
+        random_recall = recall_k(relevant_items,random_recommended_items,k)     
 
         #append to results for each baseline
         popularity_results.append({"id_student":evaluated_student["id_student"],
@@ -162,11 +211,17 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
                                    "code_presentation": evaluated_student["code_presentation"],
                                    "precision":content_precision,
                                    "recall": content_recall})
+        random_results.append({"id_student":evaluated_student["id_student"],
+                                   "code_module": evaluated_student["code_module"],
+                                   "code_presentation": evaluated_student["code_presentation"],
+                                   "precision":random_precision,
+                                   "recall": random_recall})
 
     #convert all results to df for vectorized aggregation operation (mean)
     popularity_results_df = pd.DataFrame(popularity_results)
     collaborative_results_df = pd.DataFrame(collaborative_results)
     content_results_df = pd.DataFrame(content_results)
+    random_results_df = pd.DataFrame(random_results)
 
     #create summary of results for each baseline
     summary = {
@@ -181,10 +236,14 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
             "content": {
             "precision": content_results_df["precision"].mean(),
             "recall": content_results_df["recall"].mean(),
+        },
+        "random":{
+            "precision": random_results_df["precision"].mean(),
+            "recall": random_results_df["recall"].mean(),   
         }
     }
 
     #organize individual results for easy access
-    results = {"popularity":popularity_results_df,"collaborative":collaborative_results_df,"content":content_results_df}
+    results = {"popularity":popularity_results_df,"collaborative":collaborative_results_df,"content":content_results_df, "random": random_results_df}
 
     return (results,summary)
