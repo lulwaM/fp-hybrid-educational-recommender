@@ -177,6 +177,9 @@ def processing_datasets(datasets):
     # new columnName =  (column from VLE data used in aggregation, aggregation function)
     #main feature used for collaboartive filtering is the total resource clicks
     interaction_data = processed_datasets["vle_data"].groupby(["id_student","code_module","code_presentation","id_site","activity_type"]).agg(total_resource_clicks=("sum_click","sum"),first_used=("date","min"),last_used=("date","max")).reset_index()
+
+    #also derive feature of duration of clicks from aggregated data
+    interaction_data["click_duration"] = interaction_data["last_used"] - interaction_data["first_used"]
     #end inspired code
 
     #total dfs used will be 5

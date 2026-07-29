@@ -3,6 +3,7 @@ from src.recommenders import popularity
 from src.recommenders import collaborative
 from src.recommenders import content_based
 from src.output import evaluation
+from src.data_handling import exploration
 
 # TESTING THAT BASIC RECOMMENDERS WORK INDEPENDENTLY
 
@@ -37,10 +38,17 @@ def check_baselines_working():
 # check_baselines_working()
 
 #BASELINE RECOMMENDERS EVALUATION for top 20 recommendation
-history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
-k = 20
+# history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
+# k = 20
 
 # evaluation.evaluate_baselines_performances(history_interactions,future_interactions,processed_datasets["resource_data"],evaluated_student,k)
 
-results, summary = evaluation.evaluate_baseline_models(history_interactions,future_interactions,processed_datasets["resource_data"],k)
-print(summary)
+# results, summary = evaluation.evaluate_baseline_models(history_interactions,future_interactions,processed_datasets["resource_data"],k)
+# print(summary)
+
+#save visualizations in images folder
+exploration.explore_student_data(processed_datasets["student_data"])
+exploration.explore_assessment_data(processed_datasets["assessment_data"])
+exploration.explore_vle_data(processed_datasets["vle_data"])
+exploration.explore_resource_data(processed_datasets["resource_data"])
+exploration.explore_interaction_data(processed_datasets["interaction_data"])
