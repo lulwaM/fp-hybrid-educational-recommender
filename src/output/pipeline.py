@@ -5,6 +5,8 @@ from src.recommenders import content_based
 from src.output import evaluation
 from src.data_handling import exploration
 
+from tests import sample_data
+
 # TESTING THAT BASIC RECOMMENDERS WORK INDEPENDENTLY
 
 #first load/merge/clean/typecast/process final data
@@ -38,8 +40,8 @@ def check_baselines_working():
 # check_baselines_working()
 
 #BASELINE RECOMMENDERS EVALUATION for top 20 recommendation
-# history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
-# k = 20
+history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
+k = 20
 
 # evaluation.evaluate_baselines_performances(history_interactions,future_interactions,processed_datasets["resource_data"],evaluated_student,k)
 
@@ -47,8 +49,12 @@ def check_baselines_working():
 # print(summary)
 
 #save visualizations in images folder
-exploration.explore_student_data(processed_datasets["student_data"])
-exploration.explore_assessment_data(processed_datasets["assessment_data"])
-exploration.explore_vle_data(processed_datasets["vle_data"])
-exploration.explore_resource_data(processed_datasets["resource_data"])
-exploration.explore_interaction_data(processed_datasets["interaction_data"])
+# exploration.explore_student_data(processed_datasets["student_data"])
+# exploration.explore_assessment_data(processed_datasets["assessment_data"])
+# exploration.explore_vle_data(processed_datasets["vle_data"])
+# exploration.explore_resource_data(processed_datasets["resource_data"])
+# exploration.explore_interaction_data(processed_datasets["interaction_data"])
+
+# test sample data for testing works and looks correct
+test_data = sample_data.create_datasets()
+print(test_data)

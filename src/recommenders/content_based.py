@@ -82,7 +82,7 @@ def content_scores(id_student,resource_data, interaction_data):
 
     # include resource details like code module/presentation in recommender function
     #first get list of resource details with no duplicates
-    resource_details = candidate_interactions[["id_site","code_module","code_presentation","activity_type"]].drop_duplicates()
+    resource_details = candidate_resources[["id_site","code_module","code_presentation","activity_type"]].drop_duplicates()
 
     #merge these details with the final resource scores
     scores = scores.merge(resource_details, on="id_site",how="left")
