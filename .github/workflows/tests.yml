@@ -1,0 +1,30 @@
+
+name: unit_tests
+
+on: push
+
+# overall code structure workflow inspiration from: https://medium.com/data-epic/unit-testing-in-python-and-continuous-integration-with-github-actions-bdb86a207197 
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+ 
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+      
+      # conda environment code handling inspiration from: https://github.com/conda-incubator/setup-miniconda
+      - name: Create Environment
+        uses: conda-incubator/setup-miniconda@v4
+        with:
+          activate-environment: cm3070
+          environment-file: environment.yml
+          auto-activate: false
+      
+      # running all tests code inspiration from: https://stackoverflow.com/questions/1732438/how-do-i-run-all-python-unit-tests-in-a-directory  
+      - name: Run tests
+        run: python -m unittest discover -s tests -p 'test_*.py'

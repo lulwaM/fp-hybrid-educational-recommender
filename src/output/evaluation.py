@@ -27,10 +27,28 @@ def temporal_split(vle_data,cutoff_day):
 #KEY EVALUATION METRICS, input is pandas series of relevant/recommended id of resources
 #code copied from: https://giorgi.tech/blog/offline-metrics-for-recommender-systems/
 def precision_k(relevant, recommended,k):
+
+    #protect against k error
+    if(k<0):
+        raise ValueError("Value of k must be greater than zero")
+
+    #protect against divison by zero error if no recommendations
+    if(len(recommended[:k])==0):
+        return 0
+
     # measures number of relevant items in k / total number of items in k
     return len(set(relevant).intersection(recommended[:k])) /k
 
 def recall_k(relevant, recommended, k):
+
+    #protect against k error
+    if(k<0):
+        raise ValueError("Value of k must be greater than zero")
+
+    #protect against divison by zero error if no relevant
+    if(len(relevant)==0):
+        return 0
+
     # measures number of relevant items in k / total number of relevant items
     return len(set(relevant).intersection(recommended[:k])) / len(relevant)
 
