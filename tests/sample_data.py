@@ -88,7 +88,7 @@ def create_datasets():
             "id_site": [101,102,103,201],
             "code_module": ["AAA", "AAA","AAA","BBB"],
             "code_presentation": ["2013J", "2013J","2013J","2013B"],
-            "activity_type": ["url", "oucontent", "resource","subpage"], 
+            "activity_type": ["url", "oucontent", "url","subpage"], 
             "week_from": [np.nan,np.nan,2,np.nan],
             "week_to": [5,np.nan,26,23],   
         }

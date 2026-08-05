@@ -27,10 +27,11 @@ def popularity_scores(id_student,interaction_data):
     used_resources = candidate_interactions[candidate_interactions["id_student"]==id_student]["id_site"]
     scores = scores[~scores["id_site"].isin(used_resources)]
 
-    # normalize score between 0-1 by dividing by max (makes score more understandable and comparable on same scale)
-    scores["popularity_score"] = (
-        scores["popularity_score"] / scores["popularity_score"].max()
-    )
+    # normalize scores between 0 and 1 to be understandable, if condition prevents errors with divisons by 0 or empty
+    if len(scores) > 0 and scores["popularity_score"].max() > 0:
+        scores["popularity_score"] = (
+            scores["popularity_score"] / scores["popularity_score"].max()
+        )
 
     #display highest score first, drop old indices for cleaner display
     scores = scores.sort_values(by="popularity_score", ascending=False).reset_index(drop=True)
