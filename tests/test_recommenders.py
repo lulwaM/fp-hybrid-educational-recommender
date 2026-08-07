@@ -9,7 +9,7 @@ from tests.sample_data import create_datasets
 from src.data_handling import preprocessing
 
 #functions to be tested
-from src.recommenders import popularity, collaborative, content_based
+from src.recommenders import popularity, collaborative, content_based, hybrid
 
 class TestRecommenders(unittest.TestCase):
 
@@ -110,7 +110,117 @@ class TestRecommenders(unittest.TestCase):
 
         self.assertTrue(content_scores.empty)
 
+    #4. hybrid recommender function (fixed weight)
 
+    def test_hybrid_value(self):
+        #creating new scores to calculate according to hybrid fixed weightage formula, using single recommendation for sample only
+        popularity_score = pd.DataFrame({"id_site": [101],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+               "popularity_score":[0.4] })
 
+        content_score = pd.DataFrame({"id_site": [101],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+             "content_score":[0.5]})
+
+        collaborative_score = pd.DataFrame({"id_site": [101],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+              "collaborative_score":[0.3]})
+
+        hybrid_score = hybrid.hybrid_scores(popularity_score,content_score,collaborative_score)
+        expected_score = (popularity_score.loc[0,"popularity_score"]*0.4) + (content_score.loc[0,"content_score"]*0.2) + (collaborative_score.loc[0,"collaborative_score"]*0.4)
+
+        #calculated according to default weights
+        self.assertEqual(hybrid_score.loc[0,"hybrid_score"],expected_score)
+
+    def test_hybrid_missing(self):
+
+        #creating new scores to calculate according to hybrid fixed weightage formula, using single recommendation for sample only
+        popularity_score = pd.DataFrame({"id_site": [101],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+               "popularity_score":[0.4] })
+
+        #content only recommends 102, the rest recommend 101 (will be missing scores)
+        content_score = pd.DataFrame({"id_site": [102],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+             "content_score":[0.5]})
+
+        collaborative_score = pd.DataFrame({"id_site": [101],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+              "collaborative_score":[0.3]})
+
+        hybrid_score = hybrid.hybrid_scores(popularity_score,content_score,collaborative_score)
+
+        #works by extracting hybrid record for a specific resource id, then locating the first entry for each score via iloc
+
+        #for 101, will be 0 score for content
+        self.assertEqual(hybrid_score[hybrid_score["id_site"]==101].iloc[0]["content_score"],0)
+
+        #for 102, will be 0 score for both populatity and collaborative
+        self.assertEqual(hybrid_score[hybrid_score["id_site"]==102].iloc[0]["collaborative_score"],0)
+        self.assertEqual(hybrid_score[hybrid_score["id_site"]==102].iloc[0]["popularity_score"],0)
+
+    def test_hybrid_error_greater(self):
+        #creating new scores to calculate according to hybrid fixed weightage formula, using single recommendation for sample only
+        popularity_score = pd.DataFrame({"id_site": [101],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+               "popularity_score":[0.4] })
+
+        content_score = pd.DataFrame({"id_site": [101],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+             "content_score":[0.5]})
+
+        collaborative_score = pd.DataFrame({"id_site": [101],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+              "collaborative_score":[0.3]})
+
+        #if weights sum > 1, error returned
+        #code copied from: https://stackoverflow.com/questions/129507/how-do-you-test-that-a-python-function-throws-an-exception
+        with self.assertRaises(ValueError) as context:
+            hybrid.hybrid_scores(popularity_score,content_score,collaborative_score,1,2,3)
+        #end copied code
+
+    def test_hybrid_error_negative(self):
+        #creating new scores to calculate according to hybrid fixed weightage formula, using single recommendation for sample only
+        popularity_score = pd.DataFrame({"id_site": [101],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+               "popularity_score":[0.4] })
+
+        content_score = pd.DataFrame({"id_site": [101],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+             "content_score":[0.5]})
+
+        collaborative_score = pd.DataFrame({"id_site": [101],
+            "code_module": ["AAA"],
+            "code_presentation": ["2013J"],
+            "activity_type": ["url"],
+              "collaborative_score":[0.3]})
+
+        #if any weight <0, error returned
+        #code copied from: https://stackoverflow.com/questions/129507/how-do-you-test-that-a-python-function-throws-an-exception
+        with self.assertRaises(ValueError) as context:
+            hybrid.hybrid_scores(popularity_score,content_score,collaborative_score,-0.3,0.5,0.8)
+        #end copied code
 
 

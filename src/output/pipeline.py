@@ -2,6 +2,8 @@ from src.data_handling import preprocessing
 from src.recommenders import popularity
 from src.recommenders import collaborative
 from src.recommenders import content_based
+from src.recommenders import hybrid
+
 from src.output import evaluation
 from src.data_handling import exploration
 
@@ -37,7 +39,11 @@ def check_baselines_working():
     print("\nContent-based Filtering Recommender: \n")
     print(content_recs.head(5))
 
-# check_baselines_working()
+    hybrid_recs = hybrid.hybrid_scores(popularity_recs,content_recs,collaborative_recs)
+    print("\nHybrid Recommender: \n")
+    print(hybrid_recs.head(5))
+
+check_baselines_working()
 
 #BASELINE RECOMMENDERS EVALUATION for top 20 recommendation
 history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
@@ -56,5 +62,5 @@ k = 20
 # exploration.explore_interaction_data(processed_datasets["interaction_data"])
 
 # test sample data for testing works and looks correct
-test_data = sample_data.create_datasets()
-print(test_data)
+# test_data = sample_data.create_datasets()
+# print(test_data)

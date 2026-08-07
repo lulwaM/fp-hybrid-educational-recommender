@@ -4,6 +4,7 @@ import numpy as np
 from src.recommenders import popularity
 from src.recommenders import collaborative
 from src.recommenders import content_based
+from src.recommenders import hybrid
 
 def temporal_split(vle_data,cutoff_day):
 
@@ -100,6 +101,9 @@ def evaluate_baselines_performances(history_interactions,future_interactions,res
     eval_content_recs = content_based.content_scores(evaluated_student,resource_data,history_interactions)
     eval_random_recs = random_scores(evaluated_student,history_interactions)
 
+    #for fixed weights hybrid model
+    eval_hybrid_recs = hybrid.hybrid_scores(eval_popularity_recs,eval_content_recs,eval_collaborative_recs)
+
     #first for popularity recommender
     popularity_recommended_items = eval_popularity_recs["id_site"].head(k)
     print("Popularity Model Evaluation:")
@@ -130,6 +134,16 @@ def evaluate_baselines_performances(history_interactions,future_interactions,res
     content_recall = recall_k(relevant_items,content_recommended_items,k)
     print("Recall = ",content_recall)
 
+    #next is hybrid fixed weights model 
+    hybrid_recommended_items = eval_hybrid_recs["id_site"].head(k)
+    print("\nHybrid Model Evaluation:")
+
+    hybrid_precision = precision_k(relevant_items,hybrid_recommended_items,k)
+    print("Precision = ",hybrid_precision)
+
+    hybrid_recall = recall_k(relevant_items,hybrid_recommended_items,k)
+    print("Recall = ",hybrid_recall)
+
     #final is random model (for baseline)
     random_recommended_items = eval_random_recs["id_site"].head(k)
     print("\nRandom Model Evaluation:")
@@ -158,6 +172,7 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
     popularity_results = []
     collaborative_results = []
     content_results = []
+    hybrid_results = []
     random_results = []
 
     #iterate over each evaluated student (values are index,row where row is each evaluated student record with keys id/coures module/etc)
@@ -193,6 +208,9 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
         eval_content_recs = content_based.content_scores(evaluated_student["id_student"],resource_data,history_interactions)
         eval_random_recs = random_scores(evaluated_student["id_student"],history_interactions)
 
+        #for hybrid model
+        eval_hybrid_recs = hybrid.hybrid_scores(eval_popularity_recs,eval_content_recs,eval_collaborative_recs)
+
         #first for popularity recommender
         popularity_recommended_items = eval_popularity_recs["id_site"].head(k)
         popularity_precision = precision_k(relevant_items,popularity_recommended_items,k)
@@ -207,6 +225,11 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
         content_recommended_items = eval_content_recs["id_site"].head(k)
         content_precision = precision_k(relevant_items,content_recommended_items,k)
         content_recall = recall_k(relevant_items,content_recommended_items,k)
+
+        #next is hybrid model
+        hybrid_recommended_items = eval_hybrid_recs["id_site"].head(k)
+        hybrid_precision = precision_k(relevant_items,hybrid_recommended_items,k)
+        hybrid_recall = recall_k(relevant_items,hybrid_recommended_items,k)
 
         #last is random for comparison
         random_recommended_items = eval_random_recs["id_site"].head(k)
@@ -229,6 +252,11 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
                                    "code_presentation": evaluated_student["code_presentation"],
                                    "precision":content_precision,
                                    "recall": content_recall})
+        hybrid_results.append({"id_student":evaluated_student["id_student"],
+                                   "code_module": evaluated_student["code_module"],
+                                   "code_presentation": evaluated_student["code_presentation"],
+                                   "precision":hybrid_precision,
+                                   "recall": hybrid_recall})
         random_results.append({"id_student":evaluated_student["id_student"],
                                    "code_module": evaluated_student["code_module"],
                                    "code_presentation": evaluated_student["code_presentation"],
@@ -239,6 +267,7 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
     popularity_results_df = pd.DataFrame(popularity_results)
     collaborative_results_df = pd.DataFrame(collaborative_results)
     content_results_df = pd.DataFrame(content_results)
+    hybrid_results_df = pd.DataFrame(hybrid_results)
     random_results_df = pd.DataFrame(random_results)
 
     #create summary of results for each baseline
@@ -255,6 +284,10 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
             "precision": content_results_df["precision"].mean(),
             "recall": content_results_df["recall"].mean(),
         },
+        "hybrid":{
+            "precision": hybrid_results_df["precision"].mean(),
+            "recall": hybrid_results_df["recall"].mean(),   
+        },
         "random":{
             "precision": random_results_df["precision"].mean(),
             "recall": random_results_df["recall"].mean(),   
@@ -262,6 +295,20 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
     }
 
     #organize individual results for easy access
-    results = {"popularity":popularity_results_df,"collaborative":collaborative_results_df,"content":content_results_df, "random": random_results_df}
+    results = {"popularity":popularity_results_df,"collaborative":collaborative_results_df,
+               "content":content_results_df, "hybrid":hybrid_results_df, "random": random_results_df}
+
+    #saving each baseline individual results in csv files for storage,removing index as they hold no meaning
+    results["popularity"].to_csv("output/popularity_results.csv",index=False)
+    results["collaborative"].to_csv("output/collaborative_results.csv",index=False)
+    results["content"].to_csv("output/content_results.csv",index=False)
+    results["hybrid"].to_csv("output/hybrid_results.csv",index=False)
+    results["random"].to_csv("output/random_results.csv",index=False)
+
+    #also saving summary in a csv file for storage, but must convert to dataframe first to use the to_csv pandas method
+    #note that it is transposed so that the indices represent each model rather than the precision/recall values, easier to understand
+    summary_df = pd.DataFrame(summary).T
+    summary_df.to_csv("output/evaluation_summary.csv")
+
 
     return (results,summary)
