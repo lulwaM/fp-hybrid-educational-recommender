@@ -85,7 +85,7 @@ def random_scores(id_student, interaction_data):
     return scores
 
 #USED FOR SINGLE STUDENT EVALUATION
-def evaluate_baselines_performances(history_interactions,future_interactions,resource_data,evaluated_student,k):
+def evaluate_baseline_models_single(history_interactions,future_interactions,resource_data,evaluated_student,k):
 
     #items from interactions, returns series
     history_items = history_interactions[history_interactions["id_student"]==evaluated_student]["id_site"]
@@ -157,7 +157,7 @@ def evaluate_baselines_performances(history_interactions,future_interactions,res
 
 #USED FOR OVERALL EVALUATION, all eligible students
 #note that resource data required for content based filtering
-def evaluate_baseline_models(history_interactions, future_interactions,resource_data,k):
+def evaluate_baseline_models_overall(history_interactions, future_interactions,resource_data,k):
 
     #get dataframe of non-duplicate students in historica and future interactions separately
     historical_students = history_interactions[["id_student","code_module","code_presentation"]].drop_duplicates()
@@ -299,16 +299,16 @@ def evaluate_baseline_models(history_interactions, future_interactions,resource_
                "content":content_results_df, "hybrid":hybrid_results_df, "random": random_results_df}
 
     #saving each baseline individual results in csv files for storage,removing index as they hold no meaning
-    results["popularity"].to_csv("output/popularity_results.csv",index=False)
-    results["collaborative"].to_csv("output/collaborative_results.csv",index=False)
-    results["content"].to_csv("output/content_results.csv",index=False)
-    results["hybrid"].to_csv("output/hybrid_results.csv",index=False)
-    results["random"].to_csv("output/random_results.csv",index=False)
+    results["popularity"].to_csv("outputs/popularity_results.csv",index=False)
+    results["collaborative"].to_csv("outputs/collaborative_results.csv",index=False)
+    results["content"].to_csv("outputs/content_results.csv",index=False)
+    results["hybrid"].to_csv("outputs/hybrid_results.csv",index=False)
+    results["random"].to_csv("outputs/random_results.csv",index=False)
 
     #also saving summary in a csv file for storage, but must convert to dataframe first to use the to_csv pandas method
     #note that it is transposed so that the indices represent each model rather than the precision/recall values, easier to understand
     summary_df = pd.DataFrame(summary).T
-    summary_df.to_csv("output/evaluation_summary.csv")
+    summary_df.to_csv("outputs/evaluation_summary.csv")
 
 
     return (results,summary)
