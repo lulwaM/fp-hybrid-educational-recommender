@@ -6,6 +6,14 @@ from src.recommenders import collaborative
 from src.recommenders import content_based
 from src.recommenders import hybrid
 
+from src.output import explanation
+
+# global pandas settings to display dataframe in terminal without truncation
+# code copied from: https://builtin.com/data-science/pandas-show-all-columns
+pd.set_option("display.max_columns", None)
+pd.set_option("display.max_colwidth", None)
+# end copied code
+
 def temporal_split(vle_data,cutoff_day):
 
     history_vle = vle_data[vle_data["date"]<=cutoff_day].copy()
@@ -154,6 +162,11 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
     random_recall = recall_k(relevant_items,random_recommended_items,k)
     print("Recall = ",random_recall)
 
+    #new: also adding hybrid model explanations, default weights, note that axis=1 to apply to each recommendation row
+    eval_hybrid_recs["hybrid_explanation"] = eval_hybrid_recs.apply(explanation.explain_recommendation,axis=1)
+
+    #finally printing all top-K recommendations with all scores + explanations
+    print(eval_hybrid_recs.head(k))
 
 #USED FOR OVERALL EVALUATION, all eligible students
 #note that resource data required for content based filtering
