@@ -180,5 +180,6 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-#ADDITION: ignore raw dataset due to file size limit
-data/raw/
+#ADDITION: ignore raw and processed datasets due to file size limit
+data/raw/*.csv
+data/processed/*.csv

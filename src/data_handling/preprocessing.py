@@ -167,7 +167,7 @@ def processing_datasets(datasets):
     #resource text used for final resource data for content based filtering
     processed_datasets["resource_data"]["resource_text"] = processed_datasets["resource_data"]["code_module"].astype(str) + " " + processed_datasets["resource_data"]["code_presentation"].astype(str) + " " + processed_datasets["resource_data"]["activity_type"].astype(str)
 
-    #no feature creation / further processing required for vle data
+    #no feature creation / further processing required for vle_data
 
     #code inspired by: https://www.kaggle.com/code/veenajoe/veena-vit-project-msc-ds-june-2026#4.2-Aggregating-students-based-on-id
 
@@ -184,6 +184,13 @@ def processing_datasets(datasets):
 
     #total dfs used will be 5
     processed_datasets["interaction_data"] = interaction_data
+
+    #new: save data as csv, removing index as they hold no meaning
+    processed_datasets["student_data"].to_csv("data/processed/student_data.csv",index=False)
+    processed_datasets["assessment_data"].to_csv("data/processed/assessment_data.csv",index=False)
+    processed_datasets["resource_data"].to_csv("data/processed/resource_data.csv",index=False)
+    processed_datasets["vle_data"].to_csv("data/processed/vle_data.csv",index=False)
+    processed_datasets["interaction_data"].to_csv("data/processed/interaction_data.csv",index=False)
 
     return processed_datasets
 

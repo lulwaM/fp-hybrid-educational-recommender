@@ -46,10 +46,10 @@ def check_baselines_working():
 # check_baselines_working()
 
 #BASELINE RECOMMENDERS EVALUATION for top 20 recommendation
-history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
-k = 20
+# history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
+# k = 20
 
-evaluation.evaluate_baseline_models_single(history_interactions,future_interactions,processed_datasets["resource_data"],evaluated_student,k)
+# evaluation.evaluate_baseline_models_single(history_interactions,future_interactions,processed_datasets["resource_data"],evaluated_student,k)
 
 # results, summary = evaluation.evaluate_baseline_models_overall(history_interactions,future_interactions,processed_datasets["resource_data"],k)
 # print(summary)
