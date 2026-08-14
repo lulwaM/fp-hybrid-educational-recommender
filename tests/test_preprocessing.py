@@ -55,7 +55,7 @@ class TestPreprocessing(unittest.TestCase):
         self.assertFalse(cleaned_result["student_data"]["date_unregistration"].isna().any())
 
     #handling missing values in assessment data for scores/date by dropping/filling records
-    def test_clean_missing_student(self):
+    def test_clean_missing_assessment(self):
         merged_result = preprocessing.merge_datasets(self.datasets)
         cleaned_result = preprocessing.clean_datasets(merged_result)
 
