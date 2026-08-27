@@ -14,21 +14,43 @@ pd.set_option("display.max_columns", None)
 pd.set_option("display.max_colwidth", None)
 # end copied code
 
-def temporal_split(vle_data,cutoff_day):
+def ml_temporal_split(vle_data, training_cutoff,test_cutoff):
 
-    history_vle = vle_data[vle_data["date"]<=cutoff_day].copy()
-    future_vle = vle_data[vle_data["date"]> cutoff_day].copy()
+    # split 1: for training dataset
+    training_history_vle = vle_data[vle_data["date"]<=training_cutoff].copy()
+    training_future_vle = vle_data[(vle_data["date"]> training_cutoff) & (vle_data["date"]<=test_cutoff)].copy()
 
+    # split 2: for test dataset
+    # NOTE: history available for full recommendations
+    test_history_vle = vle_data[vle_data["date"]<=test_cutoff].copy()
+    # untouched future (final target)
+    test_future_vle = vle_data[vle_data["date"]>test_cutoff].copy()
+
+    return (training_history_vle,training_future_vle,test_history_vle,test_future_vle)
+
+def aggregate_interaction_data(vle_data):
     #SAME AS PREPROCESSING STEP for interaction data
     #code inspired by: https://www.kaggle.com/code/veenajoe/veena-vit-project-msc-ds-june-2026#4.2-Aggregating-students-based-on-id
 
     #grouped so each row has one student and their intercation with 1 module resource, each aggregation column specifies 
     # new columnName =  (column from VLE data used in aggregation, aggregation function)
     #main feature used for collaboartive filtering is the total resource clicks
-    history_interactions = history_vle.groupby(["id_student","code_module","code_presentation","id_site","activity_type"]).agg(total_resource_clicks=("sum_click","sum"),first_used=("date","min"),last_used=("date","max")).reset_index()
-    future_interactions = future_vle.groupby(["id_student","code_module","code_presentation","id_site","activity_type"]).agg(total_resource_clicks=("sum_click","sum"),first_used=("date","min"),last_used=("date","max")).reset_index()
+    interaction_data = vle_data.groupby(["id_student","code_module","code_presentation","id_site","activity_type"]).agg(total_resource_clicks=("sum_click","sum"),first_used=("date","min"),last_used=("date","max")).reset_index()
 
-   #end inspired code
+    # end inspired code
+
+    interaction_data["click_duration"] = interaction_data["last_used"] - interaction_data["first_used"]
+
+    return interaction_data
+
+def temporal_split(vle_data,cutoff_day):
+
+    history_vle = vle_data[vle_data["date"]<=cutoff_day].copy()
+    future_vle = vle_data[vle_data["date"]> cutoff_day].copy()
+
+    # aggregate intereactions to be used in recommenders
+    history_interactions = aggregate_interaction_data(history_vle)
+    future_interactions = aggregate_interaction_data(future_vle)
 
     #to store in 2 separate variables during evaluaton
     return (history_interactions, future_interactions)

@@ -5,7 +5,7 @@ from src.recommenders import content_based
 from src.recommenders import hybrid
 
 from src.output import evaluation
-from src.data_handling import exploration
+from src.data_handling import exploration, feature_engineering
 
 from tests import sample_data
 
@@ -64,3 +64,27 @@ def check_baselines_working():
 # test sample data for testing works and looks correct
 # test_data = sample_data.create_datasets()
 # print(test_data)
+
+
+# ML RANKING MODEL
+
+# cutoff days, median (86) and less than max (269)
+training_cutoff = 86
+test_cutoff = 150
+
+# 1. cutoff into ML periods
+(training_history_vle,training_future_vle,test_history_vle,test_future_vle) = evaluation.ml_temporal_split(processed_datasets["vle_data"],training_cutoff,test_cutoff)
+
+#2. aggregate vle into interaction data so that recommenders can use in producing scores, may not need for future because future only generates target via .isin resources
+training_history = evaluation.aggregate_interaction_data(training_history_vle)
+# training_future = evaluation.aggregate_interaction_data(training_future_vle)
+test_history = evaluation.aggregate_interaction_data(test_history_vle)
+# test_future = evaluation.aggregate_interaction_data(test_future_vle)
+
+#3. create student features for training/test as per cutoffs
+training_student_features = feature_engineering.create_features(processed_datasets, training_cutoff)
+test_student_features = feature_engineering.create_features(processed_datasets, test_cutoff)
+
+# check if it works
+# print("training history",training_history.head())
+# print("training student features",training_student_features.head())
