@@ -40,8 +40,8 @@ class TestEvaluation(unittest.TestCase):
         history_interactions, future_interactions = evaluation.temporal_split(self.processed_datasets["vle_data"],22)
 
         #all new variables created via aggregation + existing student/resource info (note that the order remains same as creation to prevent test fail)
-        self.assertEqual(["id_student","code_module","code_presentation","id_site","activity_type","total_resource_clicks","first_used","last_used"], history_interactions.columns.to_list())
-        self.assertEqual(["id_student","code_module","code_presentation","id_site","activity_type","total_resource_clicks","first_used","last_used"], future_interactions.columns.to_list())
+        self.assertEqual(["id_student","code_module","code_presentation","id_site","activity_type","total_resource_clicks","first_used","last_used","click_duration"], history_interactions.columns.to_list())
+        self.assertEqual(["id_student","code_module","code_presentation","id_site","activity_type","total_resource_clicks","first_used","last_used","click_duration"], future_interactions.columns.to_list())
 
 
     #2. precision@k function
