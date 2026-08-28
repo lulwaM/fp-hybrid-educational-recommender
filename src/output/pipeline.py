@@ -2,12 +2,14 @@ from src.data_handling import preprocessing
 from src.recommenders import popularity
 from src.recommenders import collaborative
 from src.recommenders import content_based
-from src.recommenders import hybrid
+from src.recommenders import hybrid, ranking
 
 from src.output import evaluation
 from src.data_handling import exploration, feature_engineering
 
 from tests import sample_data
+
+import pandas as pd
 
 # TESTING THAT BASIC RECOMMENDERS WORK INDEPENDENTLY
 
@@ -75,11 +77,11 @@ test_cutoff = 150
 # 1. cutoff into ML periods
 (training_history_vle,training_future_vle,test_history_vle,test_future_vle) = evaluation.ml_temporal_split(processed_datasets["vle_data"],training_cutoff,test_cutoff)
 
-#2. aggregate vle into interaction data so that recommenders can use in producing scores, may not need for future because future only generates target via .isin resources
+#2. aggregate vle into interaction data so that recommenders can use in producing scores
 training_history = evaluation.aggregate_interaction_data(training_history_vle)
-# training_future = evaluation.aggregate_interaction_data(training_future_vle)
+training_future = evaluation.aggregate_interaction_data(training_future_vle)
 test_history = evaluation.aggregate_interaction_data(test_history_vle)
-# test_future = evaluation.aggregate_interaction_data(test_future_vle)
+test_future = evaluation.aggregate_interaction_data(test_future_vle)
 
 #3. create student features for training/test as per cutoffs
 training_student_features = feature_engineering.create_features(processed_datasets, training_cutoff)
@@ -88,3 +90,31 @@ test_student_features = feature_engineering.create_features(processed_datasets, 
 # check if it works
 # print("training history",training_history.head())
 # print("training student features",training_student_features.head())
+
+# 4. prepare ML dataset for all student-course rows, save to csv to prevent running again and again
+# training_dataset = ranking.create_ml_dataset(training_history,training_future,processed_datasets["resource_data"],training_student_features)
+# training_dataset.to_csv("data/processed/ml_training.csv", index=False)
+
+# test_dataset = ranking.create_ml_dataset(test_history,test_future,processed_datasets["resource_data"],test_student_features)
+# test_dataset.to_csv("data/processed/ml_test.csv", index=False)
+
+# after I run once, just read it from the file rather than running again
+training_dataset = pd.read_csv("data/processed/ml_training.csv")
+test_dataset = pd.read_csv("data/processed/ml_test.csv")
+
+# check if it works
+# print("target",training_dataset["target"].value_counts())
+# print("content score",test_dataset["content_score"].value_counts())
+
+# 5. create X/y for training/testing from the ML dataset
+X_train, y_train, X_test, y_test = ranking.prepare_model_input(training_dataset,test_dataset)
+
+# check it works
+print("X",X_train.head(5))
+print("y",y_test.head(5))
+print("x train shape", X_train.shape)
+print("y train shape", y_train.shape)
+print("x test shape", X_test.shape)
+print("y test shape", y_test.shape)
+
+
