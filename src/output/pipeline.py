@@ -98,9 +98,9 @@ test_student_features = feature_engineering.create_features(processed_datasets, 
 # test_dataset = ranking.create_ml_dataset(test_history,test_future,processed_datasets["resource_data"],test_student_features)
 # test_dataset.to_csv("data/processed/ml_test.csv", index=False)
 
-# after I run once, just read it from the file rather than running again
-training_dataset = pd.read_csv("data/processed/ml_training.csv")
-test_dataset = pd.read_csv("data/processed/ml_test.csv")
+# after I run once, just read it from the file rather than running again, specify data type for disability bceause keep getting warning for it
+training_dataset = pd.read_csv("data/processed/ml_training.csv", dtype={'disability':'boolean'})
+test_dataset = pd.read_csv("data/processed/ml_test.csv", dtype={'disability':'boolean'})
 
 # check if it works
 # print("target",training_dataset["target"].value_counts())
@@ -110,11 +110,27 @@ test_dataset = pd.read_csv("data/processed/ml_test.csv")
 X_train, y_train, X_test, y_test = ranking.prepare_model_input(training_dataset,test_dataset)
 
 # check it works
-print("X",X_train.head(5))
-print("y",y_test.head(5))
-print("x train shape", X_train.shape)
-print("y train shape", y_train.shape)
-print("x test shape", X_test.shape)
-print("y test shape", y_test.shape)
+# print("X",X_train.head(5))
+# print("y",y_test.head(5))
+# print("x train shape", X_train.shape)
+# print("y train shape", y_train.shape)
+# print("x test shape", X_test.shape)
+# print("y test shape", y_test.shape)
+
+# 6. create model and fit with training data
+# random_forest_model = ranking.create_ML_model(X_train,y_train,'random_forest')
+# print('random forest model fit complete')
+# ranking.save_model(random_forest_model, 'models/random_forest_model.joblib')
+
+# SVC_model = ranking.create_ML_model(X_train,y_train,'SVC')
+# print('SVC model fit complete')
+# ranking.save_model(SVC_model, 'models/SVC_model.joblib')
+
+# 7. evaluate model with testing data and print results
+random_forest_model = ranking.load_model('models/random_forest_model.joblib')
+random_forest_results = evaluation.evaluate_model_classifier(random_forest_model,X_test,y_test)
+print(random_forest_results)
+
+
 
 

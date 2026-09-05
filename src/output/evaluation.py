@@ -8,6 +8,9 @@ from src.recommenders import hybrid
 
 from src.output import explanation
 
+# for ML model evaluation
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
+
 # global pandas settings to display dataframe in terminal without truncation
 # code copied from: https://builtin.com/data-science/pandas-show-all-columns
 pd.set_option("display.max_columns", None)
@@ -347,3 +350,23 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
 
 
     return (results,summary)
+
+def evaluate_model_classifier(model, X_test_data, y_test_data):
+
+    predictions = model.predict(X_test_data)
+
+    # relevance score, get as single list for all recs
+    probabilities = model.predict_proba(X_test_data)[:,1]
+
+    results = {
+        'precision': precision_score(y_true=y_test_data,y_pred=predictions),
+        'recall': recall_score(y_true=y_test_data,y_pred=predictions),
+        'f1': f1_score(y_true=y_test_data,y_pred=predictions),
+        # uses probaiblities rather than binary predictions
+        'roc-auc': roc_auc_score(y_true=y_test_data,y_score=probabilities)
+    }
+
+    return results
+
+
+    

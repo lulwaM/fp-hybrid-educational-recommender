@@ -1,8 +1,21 @@
 #imports
 import pandas as pd
+import numpy as np
 
 # ML ranking model will use ALL recommenders
 from src.recommenders import popularity, collaborative, content_based
+
+# for ML model creation/preprocessing
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+
+# for saving/loading model
+import joblib
 
 # generate possible recommendations for a student-course record, k = number of candidate recommendations to generate
 def generate_candidates(id_student,interaction_data,resource_data, k=20, popularity_recs=None, collaborative_recs=None, content_recs=None):
@@ -131,7 +144,106 @@ def prepare_model_input(training_dataset, test_dataset):
     X_train = training_dataset[feature_columns].copy()
     X_test = test_dataset[feature_columns].copy()
 
+    # handle missing values to prevent crash
+    
+    # for categorical columns, pd.NaN not accepted for missing, 
+    categorical_features =[
+        "gender","region","highest_education","imd_band","age_band", "disability",
+    ]
+
+    # so convert to np.nan after converting it to object for easy processing
+    for feature in categorical_features:
+        # code to convert np.nan inspired by: https://stackoverflow.com/questions/14162723/replacing-pandas-or-numpy-nan-with-a-none-to-use-with-mysqldb
+        X_train[feature] = X_train[feature].astype(object).where(X_train[feature].notna(),np.nan)
+        X_test[feature] = X_test[feature].astype(object).where(X_test[feature].notna(),np.nan)
+        # end inspired code
+
+
+    # text cannot be empty because then cannot be vectorized
+    X_train["resource_text"] = X_train["resource_text"].fillna("").astype(str)
+    X_test["resource_text"] = X_test["resource_text"].fillna("").astype(str)
+
     # return train/test X/y
     return (X_train, y_train, X_test, y_test)
 
+# returns fitted ML model
+def create_ML_model(X_training_data, y_training_data, model_type='random_forest'):
 
+
+    # divide features into the 3 data types, different preprocessing for each
+
+    numerical_features = [
+        "popularity_score","collaborative_score","content_score",
+        "num_of_prev_attempts","studied_credits",
+        "average_score","min_score","max_score","assessments_submitted","average_submission_date","average_assessment_weight","assessment_type_diversity",
+        "total_resource_clicks","average_resource_clicks","first_used","last_used","resources_used","interaction_duration","days_registered"
+        ]
+    # categorical features will include bool because its either 0/1
+    categorical_features =[
+        "gender","region","highest_education","imd_band","age_band", "disability",
+    ]
+
+    # fixed, removed all other text data
+    textual_feature = "resource_text"
+
+
+    # structure of code inspired by: https://stackoverflow.com/questions/69802958/how-do-i-turn-preprocessed-data-from-pipelines-into-dataframes
+
+    # create preprocessing pipelines for each feature type
+
+    #1 according to design specs, will fill with median for missing (if present) and scale normally using standard scaling (z score normalization)
+    numerical_transformer = Pipeline(steps=[
+        ('missing',SimpleImputer(strategy='median')),
+        ('scaling',StandardScaler())
+    ])
+
+    #2 as per design, fill with mode for missing and one hot encode to turn its numeric (with unknowns ignored to prevent crashes)
+    categorical_transformer = Pipeline(steps=[
+        ('missing',SimpleImputer(strategy='most_frequent')),
+        ('encoding',OneHotEncoder(handle_unknown='ignore'))
+    ])
+    # end inspired code
+
+
+    #for text, will include directly in final preprocessor because it is one operation of TF-IDF vectorization
+    preprocessor = ColumnTransformer([("numerical", numerical_transformer, numerical_features),
+                                      ("categorical",categorical_transformer,categorical_features),
+                                      ("textual",TfidfVectorizer(),textual_feature)])
+
+    # now build model according to parameter, ALL models have a random state to keep same results each time + balanced class weight to account for the imbalance in interactions in dataset, setting verbose to track progress
+    # first random forest
+    if(model_type == "random_forest"):
+
+        # using all CPU cores (for fast execution), initial 200 decision trees and max depth of 10 as good starting point
+        # parameters code inspired by https://www.kaggle.com/code/zincbottom/oulad-random-forest#Modeling
+        model = RandomForestClassifier(n_estimators=200, max_depth=10, class_weight='balanced',random_state=10,n_jobs=-1, verbose=1)
+        # end inspired code
+
+    # otherwise SVC
+    elif(model_type == 'SVC'):
+        # probability set to true to return float between 0 and 1 for the relevance score rather than binary
+        model = SVC(probability=True,class_weight='balanced',random_state=10, verbose=True)
+
+    else:
+        raise ValueError("Model type must be either random_forest or SVC")
+
+    # final model with preprocessor as first step
+    final_model = Pipeline(steps=[
+                           ('preprocessing',preprocessor),
+                           ('model',model)])
+
+    # fit it with training data so it is ready to evaluate next
+    final_model.fit(X_training_data,y_training_data)
+
+    return final_model
+
+# code inspired by: https://www.analyticsvidhya.com/blog/2023/02/how-to-save-and-load-machine-learning-models-in-python-using-joblib-library/
+def save_model(model,filepath):
+    joblib.dump(model, filepath)
+
+    print("Model saved")
+
+def load_model(filepath):
+    return joblib.load(filepath)
+
+# end inspired code
