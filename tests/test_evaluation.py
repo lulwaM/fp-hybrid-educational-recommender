@@ -3,6 +3,7 @@ import unittest
 
 #for data storage
 import pandas as pd
+import numpy as np
 
 #to create sample test data and preprocessed
 from tests.sample_data import create_datasets
@@ -92,11 +93,12 @@ class TestEvaluation(unittest.TestCase):
     #3. random scores function
     
     def test_random_value(self):
+        # verify truly random for each student id (even though reproducible via seed)
         random_scores_1 = evaluation.random_scores(1,self.processed_datasets["interaction_data"])
-        random_scores_2 = evaluation.random_scores(1,self.processed_datasets["interaction_data"])
+        random_scores_2 = evaluation.random_scores(2,self.processed_datasets["interaction_data"])
 
-        #verify output is truly random
-        self.assertNotEqual(random_scores_1["random_score"].values,random_scores_2["random_score"].values)
+        #verify output is truly random, note that comparison on np arrays due to errors with ambigious (as .values converts to np array)
+        self.assertFalse(np.array_equal(random_scores_1["random_score"].values,random_scores_2["random_score"].values))
 
     def test_random_range(self):
         random_scores = evaluation.random_scores(1,self.processed_datasets["interaction_data"])
