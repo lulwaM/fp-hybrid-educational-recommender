@@ -13,6 +13,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
+from sklearn.model_selection import train_test_split
 
 # for saving/loading model
 import joblib
@@ -115,6 +116,15 @@ def create_ml_dataset(history_interactions, future_interactions,resource_data,st
 
 
     return ml_dataset
+
+def sample_training_data(training_dataset, sample_size=5000):
+    # use stratified to maintain balanced classes
+    # code inspired by: https://stackoverflow.com/questions/35472712/how-to-split-data-on-balanced-training-set-and-test-set-on-sklearn
+    sample, _ = train_test_split(training_dataset,train_size=sample_size,stratify=training_dataset["target"],random_state=10)
+    # end inspired code
+
+    # remove indices because it is sampled
+    return sample.reset_index(drop=True)
 
 
 # prepare test/train X/y to feed to model
@@ -225,7 +235,7 @@ def create_ML_model(X_training_data, y_training_data, model_type='random_forest'
     # otherwise SVC
     elif(model_type == 'SVC'):
         # probability set to true to return float between 0 and 1 for the relevance score rather than binary
-        model = SVC(probability=True,class_weight='balanced',random_state=10, verbose=True)
+        model = SVC(class_weight='balanced',random_state=10, verbose=True)
 
     else:
         raise ValueError("Model type must be either random_forest or SVC")
@@ -250,3 +260,20 @@ def load_model(filepath):
     return joblib.load(filepath)
 
 # end inspired code
+
+# preidction differs based on model
+def predict_ML_scores(model, X_test_data, model_type):
+
+    # note that scales are different, but does not matter as we are checking ML metrics
+    if model_type == 'random_forest':
+        # use probabilities
+        scores = model.predict_proba(X_test_data)[:,1]
+
+    elif model_type == "SVC": 
+        # use decision function
+        scores = model.decision_function(X_test_data)
+
+    else:
+        raise ValueError("Model type must be random_forest or SVC")
+
+    return scores

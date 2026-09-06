@@ -131,21 +131,44 @@ X_train, y_train, X_test, y_test = ranking.prepare_model_input(training_dataset,
 # print('random forest model fit complete')
 # ranking.save_model(random_forest_model, 'models/random_forest_model.joblib')
 
-# SVC_model = ranking.create_ML_model(X_train,y_train,'SVC')
-# print('SVC model fit complete')
-# ranking.save_model(SVC_model, 'models/SVC_model.joblib')
-
 # 7. evaluate model with testing data and print results
-random_forest_model = ranking.load_model('models/random_forest_model.joblib')
+# random_forest_model = ranking.load_model('models/random_forest_model.joblib')
 
 # overall classifier results, checking recs across only generated candidates
-random_forest_results = evaluation.evaluate_ML_classifier(random_forest_model,X_test,y_test, 'random_forest')
-print("Classifier results",random_forest_results)
+# random_forest_results = evaluation.evaluate_ML_classifier(random_forest_model,X_test,y_test, 'random_forest','random_forest_classifier_results')
+# print("Classifier results",random_forest_results)
 
 # # @20 recommender results, must use interactions because checking recs across all interactions
 # (ML_results,ML_summary) = evaluation.evaluate_ML_recommender(random_forest_model,X_test_data=X_test,test_dataset=test_dataset,history_interactions=test_history,future_interactions=test_future,model_type='random_forest',k=20)
+# evaluation.save_ML_recommender_results(ML_results,ML_summary,"random_forest_recommender_results","random_forest",saveSummary=True)
 # print("Recommender summary results",ML_summary)
 # print('sample of ML results',ML_results.head(5))
 
+#8. compare ML models with new sample input, 10k samples
+# sample_training_dataset = ranking.sample_training_data(training_dataset,10000)
 
+# test not touched
+# X_train_sample, y_train_sample, X_test, y_test = ranking.prepare_model_input(sample_training_dataset,test_dataset)
 
+# create models
+# rf_model = ranking.create_ML_model(X_train_sample,y_train_sample,"random_forest")
+# ranking.save_model(rf_model, 'models/random_forest_sample_model.joblib')
+# svc_model = ranking.create_ML_model(X_train_sample,y_train_sample,"SVC")
+# ranking.save_model(svc_model, 'models/SVC_sample_model.joblib')
+
+# rf_model = ranking.load_model('models/random_forest_sample_model.joblib')
+# svc_model = ranking.load_model('models/SVC_sample_model.joblib')
+
+# evaluate and save
+# overall
+# (RF_results,RF_summary) = evaluation.evaluate_ML_recommender(rf_model,X_test_data=X_test,test_dataset=test_dataset,history_interactions=test_history,future_interactions=test_future,model_type='random_forest',k=20)
+# evaluation.save_ML_recommender_results(RF_results,RF_summary,"random_forest_sample_results","random_forest",saveSummary=False)
+
+# (SVC_results,SVC_summary) = evaluation.evaluate_ML_recommender(svc_model,X_test_data=X_test,test_dataset=test_dataset,history_interactions=test_history,future_interactions=test_future,model_type='SVC',k=20)
+# evaluation.save_ML_recommender_results(SVC_results,SVC_summary,"SVC_sample_results","SVC",saveSummary=False)
+
+# evaluation.save_ML_comparison_results(RF_summary,SVC_summary)
+
+# by classifier (but sampled)
+# rf_results = evaluation.evaluate_ML_classifier(rf_model,X_test,y_test, 'random_forest','random_forest_sample_classifier_results')
+# svc_results = evaluation.evaluate_ML_classifier(svc_model,X_test,y_test, 'SVC','SVC_sample_classifier_results')

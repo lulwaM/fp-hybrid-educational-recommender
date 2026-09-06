@@ -5,6 +5,7 @@ from src.recommenders import popularity
 from src.recommenders import collaborative
 from src.recommenders import content_based
 from src.recommenders import hybrid
+from src.recommenders import ranking
 
 from src.output import explanation
 
@@ -122,7 +123,7 @@ def random_scores(id_student, interaction_data):
     random_seed = np.random.default_rng(10+int(id_student))
 
     #assign random score to each rec, between 0-1 like other recommenders
-    scores["random_score"] = np.random.rand(len(scores))
+    scores["random_score"] = random_seed.random(len(scores))
 
     #display highest score first, drop old indices for cleaner display
     scores = scores.sort_values(by="random_score", ascending=False).reset_index(drop=True)
@@ -393,19 +394,25 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
     #also saving summary in a csv file for storage, but must convert to dataframe first to use the to_csv pandas method
     #note that it is transposed so that the indices represent each model rather than the precision/recall values, easier to understand
     summary_df = pd.DataFrame(summary).T
-    summary_df.to_csv("outputs/evaluation_summary.csv")
+    summary_df.to_csv("outputs/recommender_summary.csv")
 
 
     return (results,summary)
 
 # OVERALL CLASSIFIER PERFORMANCE, not top 20. it checks if task learned, if the model correctly classified used candidates (within candidates only, not all interactions)
 # checking against y test candidates rather than full interactions
-def evaluate_ML_classifier(model, X_test_data, y_test_data,model_type):
+def evaluate_ML_classifier(model, X_test_data, y_test_data,model_type,file_name):
 
-    predictions = model.predict(X_test_data)
+    if model_type == 'random_forest':
+        # relevance score, get as single list for all recs
+        relevance_scores = model.predict_proba(X_test_data)[:,1]
+        predictions = model.predict(X_test_data)
 
-    # relevance score, get as single list for all recs
-    probabilities = model.predict_proba(X_test_data)[:,1]
+    elif model_type == 'SVC':
+        relevance_scores = model.decision_function(X_test_data)
+        predictions = (relevance_scores>0).astype(int)
+    else:
+        raise ValueError("Model type must be random_forest or SVC")
 
     # all using sci kit learn's actual functions, not own helper functions
     results = {
@@ -414,12 +421,12 @@ def evaluate_ML_classifier(model, X_test_data, y_test_data,model_type):
         'classifier_recall': recall_score(y_true=y_test_data,y_pred=predictions),
         'classifier_f1': f1_score(y_true=y_test_data,y_pred=predictions),
         # uses probaiblities rather than binary predictions
-        'classifier_roc-auc': roc_auc_score(y_true=y_test_data,y_score=probabilities)
+        'classifier_roc-auc': roc_auc_score(y_true=y_test_data,y_score=relevance_scores)
     }
 
     # save to csv after converting to dataframe (within list to prevent conversion to series)
     results_df = pd.DataFrame([results])
-    results_df.to_csv(f"outputs/{model_type}_classifier_results.csv")
+    results_df.to_csv(f"outputs/{file_name}.csv")
 
     return results
 
@@ -431,8 +438,8 @@ def evaluate_ML_recommender(model, X_test_data, test_dataset,history_interaction
     # extract needed info for recommendations from dataset
     recommendation_data = test_dataset[["id_student","code_module","code_presentation","id_site"]].copy()
 
-    # calculate ML score (aka probability) from X of test dataset, extract only scores for class 1 (meaning relevant) for all rows
-    recommendation_data["ML_score"] = model.predict_proba(X_test_data)[:,1]
+    # calculate ML scorefrom X of test dataset
+    recommendation_data["ML_score"] = ranking.predict_ML_scores(model, X_test_data,model_type)
 
     # same process as baseline models evaluation:
 
@@ -502,16 +509,38 @@ def evaluate_ML_recommender(model, X_test_data, test_dataset,history_interaction
             "f1": ML_results_df["f1"].mean(),
         }
 
-    #saving ML model individual results in csv files for storage,removing index as it holds no meaning
-    ML_results_df.to_csv(f"outputs/{model_type}_recommender_results.csv",index=False)
-
-    # read existing evaluation summary from baseline models, index is first column where model names held
-    evaluation_summary_df = pd.read_csv('outputs/evaluation_summary.csv', index_col=0)
-
-    # create new row with model name and column values in exact same order
-    evaluation_summary_df.loc[model_type] = [ML_summary["precision"],ML_summary["recall"],ML_summary["f1"]]
-
-    # overwrite old evaluation summary with updated one
-    evaluation_summary_df.to_csv('outputs/evaluation_summary.csv')
-
     return (ML_results_df,ML_summary)
+
+def save_ML_recommender_results(ML_results_df,ML_summary,file_name,model_type,saveSummary=True):
+
+    #saving ML model individual results in csv files for storage,removing index as it holds no meaning
+    ML_results_df.to_csv(f"outputs/{file_name}.csv",index=False)
+
+    if saveSummary == True:
+        # read existing evaluation summary from baseline models, index is first column where model names held
+        recommender_summary_df = pd.read_csv('outputs/recommender_summary.csv', index_col=0)
+
+        # create new row with model name and column values in exact same order
+        recommender_summary_df.loc[model_type] = [ML_summary["precision"],ML_summary["recall"],ML_summary["f1"]]
+
+        # overwrite old evaluation summary with updated one
+        recommender_summary_df.to_csv('outputs/recommender_summary.csv')
+
+def save_ML_comparison_results(RF_summary, SVC_summary):
+    comparison = {
+        "random_forest": {
+            "precision": RF_summary["precision"],
+            "recall": RF_summary["recall"],
+            "f1": RF_summary["f1"]
+        },
+        "SVC": {
+            "precision": SVC_summary["precision"],
+            "recall": SVC_summary["recall"],
+            "f1": SVC_summary["f1"]
+        },
+    }
+
+
+    #note that it is transposed so that the indices represent each model rather than the precision/recall values, easier to understand
+    comparison_df = pd.DataFrame(comparison).T
+    comparison_df.to_csv("outputs/ml_model_comparison.csv")

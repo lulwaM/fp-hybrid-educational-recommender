@@ -1,0 +1,2 @@
+,model,classifier_precision,classifier_recall,classifier_f1,classifier_roc-auc
+0,SVC,0.14555645963294458,0.014008405043025815,0.025557178233538636,0.5382526283603088
