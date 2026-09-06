@@ -1,0 +1,2 @@
+,model,classifier_precision,classifier_recall,classifier_f1,classifier_roc-auc
+0,random_forest,0.29232483317926217,0.630073696391748,0.39936357720348986,0.7167845854555707

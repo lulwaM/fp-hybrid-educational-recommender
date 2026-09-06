@@ -45,14 +45,19 @@ def check_baselines_working():
     print("\nHybrid Recommender: \n")
     print(hybrid_recs.head(5))
 
+# create function generate FINAL recommendations with all resource columns + all score columns
+
+
+
 # check_baselines_working()
 
 #BASELINE RECOMMENDERS EVALUATION for top 20 recommendation
-# history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
-# k = 20
+history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
+k = 20
 
 # evaluation.evaluate_baseline_models_single(history_interactions,future_interactions,processed_datasets["resource_data"],evaluated_student,k)
 
+# OLD, uses >86 for evaluation. will use >150 to evaluate later on, same as ML model
 # results, summary = evaluation.evaluate_baseline_models_overall(history_interactions,future_interactions,processed_datasets["resource_data"],k)
 # print(summary)
 
@@ -83,9 +88,13 @@ training_future = evaluation.aggregate_interaction_data(training_future_vle)
 test_history = evaluation.aggregate_interaction_data(test_history_vle)
 test_future = evaluation.aggregate_interaction_data(test_future_vle)
 
+# baseline models evaluation, using same testing cutoff so all training data before it used for recs then after it for target (no need training because its not a real model)
+# results, summary = evaluation.evaluate_baseline_models_overall(test_history,test_future,processed_datasets["resource_data"],k)
+# print("Baseline models results",summary)
+
 #3. create student features for training/test as per cutoffs
-training_student_features = feature_engineering.create_features(processed_datasets, training_cutoff)
-test_student_features = feature_engineering.create_features(processed_datasets, test_cutoff)
+# training_student_features = feature_engineering.create_features(processed_datasets, training_cutoff)
+# test_student_features = feature_engineering.create_features(processed_datasets, test_cutoff)
 
 # check if it works
 # print("training history",training_history.head())
@@ -128,9 +137,15 @@ X_train, y_train, X_test, y_test = ranking.prepare_model_input(training_dataset,
 
 # 7. evaluate model with testing data and print results
 random_forest_model = ranking.load_model('models/random_forest_model.joblib')
-random_forest_results = evaluation.evaluate_model_classifier(random_forest_model,X_test,y_test)
-print(random_forest_results)
 
+# overall classifier results, checking recs across only generated candidates
+random_forest_results = evaluation.evaluate_ML_classifier(random_forest_model,X_test,y_test, 'random_forest')
+print("Classifier results",random_forest_results)
+
+# # @20 recommender results, must use interactions because checking recs across all interactions
+# (ML_results,ML_summary) = evaluation.evaluate_ML_recommender(random_forest_model,X_test_data=X_test,test_dataset=test_dataset,history_interactions=test_history,future_interactions=test_future,model_type='random_forest',k=20)
+# print("Recommender summary results",ML_summary)
+# print('sample of ML results',ML_results.head(5))
 
 
 

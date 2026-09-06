@@ -63,7 +63,7 @@ def temporal_split(vle_data,cutoff_day):
 def precision_k(relevant, recommended,k):
 
     #protect against k error
-    if(k<0):
+    if(k<=0):
         raise ValueError("Value of k must be greater than zero")
 
     #protect against divison by zero error if no recommendations
@@ -76,7 +76,7 @@ def precision_k(relevant, recommended,k):
 def recall_k(relevant, recommended, k):
 
     #protect against k error
-    if(k<0):
+    if(k<=0):
         raise ValueError("Value of k must be greater than zero")
 
     #protect against divison by zero error if no relevant
@@ -87,6 +87,14 @@ def recall_k(relevant, recommended, k):
     return len(set(relevant).intersection(recommended[:k])) / len(relevant)
 
 #end copied code
+
+# derived from well known formula, must name it helper to not clash with existing sci-kitlearn f1_score function
+def f1_score_helper(precision,recall):
+    #protect against divison by zero error in denominator
+    if((precision+recall)==0):
+        return 0
+
+    return 2 * ((precision*recall)/(precision+recall))
 
 #function for random model to act as baseline to compare model performances
 def random_scores(id_student, interaction_data):
@@ -108,6 +116,10 @@ def random_scores(id_student, interaction_data):
     #remove used resources to not recommend
     used_resources = candidate_interactions[candidate_interactions["id_student"]==id_student]["id_site"]
     scores = scores[~scores["id_site"].isin(used_resources)]
+
+    # for reproducible random scores, create seed (based on student id so that students with identically same candidate recs not same score)
+    #note that default rng is modern version of setting seed as per numpy documentation, not seed method
+    random_seed = np.random.default_rng(10+int(id_student))
 
     #assign random score to each rec, between 0-1 like other recommenders
     scores["random_score"] = np.random.rand(len(scores))
@@ -147,6 +159,9 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
     popularity_recall = recall_k(relevant_items,popularity_recommended_items,k)
     print("Recall = ",popularity_recall)
 
+    popularity_f1 = f1_score_helper(precision=popularity_precision,recall=popularity_recall)
+    print("F1 = ",popularity_f1)
+
     #second is collaborative model
     collaborative_recommended_items = eval_collaborative_recs["id_site"].head(k)
     print("\nCollaborative Model Evaluation:")
@@ -156,6 +171,9 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
 
     collaborative_recall = recall_k(relevant_items,collaborative_recommended_items,k)
     print("Recall = ",collaborative_recall)
+
+    collaborative_f1 = f1_score_helper(precision=collaborative_precision,recall=collaborative_recall)
+    print("F1 = ",collaborative_f1)
 
     #next is content based model
     content_recommended_items = eval_content_recs["id_site"].head(k)
@@ -167,6 +185,9 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
     content_recall = recall_k(relevant_items,content_recommended_items,k)
     print("Recall = ",content_recall)
 
+    content_f1 = f1_score_helper(precision=content_precision,recall=content_recall)
+    print("F1 = ",content_f1)
+
     #next is hybrid fixed weights model 
     hybrid_recommended_items = eval_hybrid_recs["id_site"].head(k)
     print("\nHybrid Model Evaluation:")
@@ -177,6 +198,9 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
     hybrid_recall = recall_k(relevant_items,hybrid_recommended_items,k)
     print("Recall = ",hybrid_recall)
 
+    hybrid_f1 = f1_score_helper(precision=hybrid_precision,recall=hybrid_recall)
+    print("F1 = ",hybrid_f1)
+
     #final is random model (for baseline)
     random_recommended_items = eval_random_recs["id_site"].head(k)
     print("\nRandom Model Evaluation:")
@@ -186,6 +210,9 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
 
     random_recall = recall_k(relevant_items,random_recommended_items,k)
     print("Recall = ",random_recall)
+
+    random_f1 = f1_score_helper(precision=random_precision,recall=random_recall)
+    print("F1 = ",random_f1)
 
     #new: also adding hybrid model explanations, default weights, note that axis=1 to apply to each recommendation row
     eval_hybrid_recs["hybrid_explanation"] = eval_hybrid_recs.apply(explanation.explain_recommendation,axis=1)
@@ -239,67 +266,82 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
             #student has used all future resource recommendation, no scores so skip
             continue
 
-        #evaluate on history data only
+        #evaluate on history data only, make sure from same course being evaluated only (similar to what was done for relevant items extraction and ML model generating candidates)
         eval_popularity_recs = popularity.popularity_scores(evaluated_student["id_student"],history_interactions)
+        eval_popularity_recs = eval_popularity_recs[(eval_popularity_recs["code_module"]==evaluated_student["code_module"]) & (eval_popularity_recs["code_presentation"]==evaluated_student["code_presentation"])].copy()
         eval_collaborative_recs = collaborative.collaborative_scores(evaluated_student["id_student"],history_interactions)
+        eval_collaborative_recs = eval_collaborative_recs[(eval_collaborative_recs["code_module"]==evaluated_student["code_module"]) & (eval_collaborative_recs["code_presentation"]==evaluated_student["code_presentation"])].copy()
         #note that resource data is not leaking, its simply listing the resources
         eval_content_recs = content_based.content_scores(evaluated_student["id_student"],resource_data,history_interactions)
+        eval_content_recs = eval_content_recs[(eval_content_recs["code_module"]==evaluated_student["code_module"]) & (eval_content_recs["code_presentation"]==evaluated_student["code_presentation"])].copy()
         eval_random_recs = random_scores(evaluated_student["id_student"],history_interactions)
+        eval_random_recs = eval_random_recs[(eval_random_recs["code_module"]==evaluated_student["code_module"]) & (eval_random_recs["code_presentation"]==evaluated_student["code_presentation"])].copy()
 
         #for hybrid model
         eval_hybrid_recs = hybrid.hybrid_scores(eval_popularity_recs,eval_content_recs,eval_collaborative_recs)
+        eval_hybrid_recs = eval_hybrid_recs[(eval_hybrid_recs["code_module"]==evaluated_student["code_module"]) & (eval_hybrid_recs["code_presentation"]==evaluated_student["code_presentation"])].copy()
 
         #first for popularity recommender
         popularity_recommended_items = eval_popularity_recs["id_site"].head(k)
         popularity_precision = precision_k(relevant_items,popularity_recommended_items,k)
         popularity_recall = recall_k(relevant_items,popularity_recommended_items,k)
+        popularity_f1 = f1_score_helper(precision=popularity_precision,recall=popularity_recall)
 
         #second is collaborative model
         collaborative_recommended_items = eval_collaborative_recs["id_site"].head(k)
         collaborative_precision = precision_k(relevant_items,collaborative_recommended_items,k)
         collaborative_recall = recall_k(relevant_items,collaborative_recommended_items,k)
+        collaborative_f1 = f1_score_helper(precision=collaborative_precision,recall=collaborative_recall)
 
         #next is content based model
         content_recommended_items = eval_content_recs["id_site"].head(k)
         content_precision = precision_k(relevant_items,content_recommended_items,k)
         content_recall = recall_k(relevant_items,content_recommended_items,k)
+        content_f1 = f1_score_helper(precision=content_precision,recall=content_recall)
 
         #next is hybrid model
         hybrid_recommended_items = eval_hybrid_recs["id_site"].head(k)
         hybrid_precision = precision_k(relevant_items,hybrid_recommended_items,k)
         hybrid_recall = recall_k(relevant_items,hybrid_recommended_items,k)
+        hybrid_f1 = f1_score_helper(precision=hybrid_precision,recall=hybrid_recall)
 
         #last is random for comparison
         random_recommended_items = eval_random_recs["id_site"].head(k)
         random_precision = precision_k(relevant_items,random_recommended_items,k)
         random_recall = recall_k(relevant_items,random_recommended_items,k)     
+        random_f1 = f1_score_helper(precision=random_precision,recall=random_recall)
 
         #append to results for each baseline
         popularity_results.append({"id_student":evaluated_student["id_student"],
                                    "code_module": evaluated_student["code_module"],
                                    "code_presentation": evaluated_student["code_presentation"],
                                    "precision":popularity_precision,
-                                   "recall": popularity_recall})
+                                   "recall": popularity_recall,
+                                   "f1":popularity_f1})
         collaborative_results.append({"id_student":evaluated_student["id_student"],
                                    "code_module": evaluated_student["code_module"],
                                    "code_presentation": evaluated_student["code_presentation"],
                                    "precision":collaborative_precision,
-                                   "recall": collaborative_recall})
+                                   "recall": collaborative_recall,
+                                   "f1":collaborative_f1})
         content_results.append({"id_student":evaluated_student["id_student"],
                                    "code_module": evaluated_student["code_module"],
                                    "code_presentation": evaluated_student["code_presentation"],
                                    "precision":content_precision,
-                                   "recall": content_recall})
+                                   "recall": content_recall,
+                                   "f1":content_f1})
         hybrid_results.append({"id_student":evaluated_student["id_student"],
                                    "code_module": evaluated_student["code_module"],
                                    "code_presentation": evaluated_student["code_presentation"],
                                    "precision":hybrid_precision,
-                                   "recall": hybrid_recall})
+                                   "recall": hybrid_recall,
+                                   "f1":hybrid_f1})
         random_results.append({"id_student":evaluated_student["id_student"],
                                    "code_module": evaluated_student["code_module"],
                                    "code_presentation": evaluated_student["code_presentation"],
                                    "precision":random_precision,
-                                   "recall": random_recall})
+                                   "recall": random_recall,
+                                   "f1":random_f1})
 
     #convert all results to df for vectorized aggregation operation (mean)
     popularity_results_df = pd.DataFrame(popularity_results)
@@ -313,22 +355,27 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
         "popularity": {
             "precision": popularity_results_df["precision"].mean(),
             "recall": popularity_results_df["recall"].mean(),
+            "f1": popularity_results_df["f1"].mean(),
         },
             "collaborative": {
             "precision": collaborative_results_df["precision"].mean(),
             "recall": collaborative_results_df["recall"].mean(),
+            "f1": collaborative_results_df["f1"].mean(),
         },
             "content": {
             "precision": content_results_df["precision"].mean(),
             "recall": content_results_df["recall"].mean(),
+            "f1": content_results_df["f1"].mean(),
         },
         "hybrid":{
             "precision": hybrid_results_df["precision"].mean(),
             "recall": hybrid_results_df["recall"].mean(),   
+            "f1": hybrid_results_df["f1"].mean(),
         },
         "random":{
             "precision": random_results_df["precision"].mean(),
             "recall": random_results_df["recall"].mean(),   
+            "f1": random_results_df["f1"].mean(),
         }
     }
 
@@ -351,22 +398,120 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
 
     return (results,summary)
 
-def evaluate_model_classifier(model, X_test_data, y_test_data):
+# OVERALL CLASSIFIER PERFORMANCE, not top 20. it checks if task learned, if the model correctly classified used candidates (within candidates only, not all interactions)
+# checking against y test candidates rather than full interactions
+def evaluate_ML_classifier(model, X_test_data, y_test_data,model_type):
 
     predictions = model.predict(X_test_data)
 
     # relevance score, get as single list for all recs
     probabilities = model.predict_proba(X_test_data)[:,1]
 
+    # all using sci kit learn's actual functions, not own helper functions
     results = {
-        'precision': precision_score(y_true=y_test_data,y_pred=predictions),
-        'recall': recall_score(y_true=y_test_data,y_pred=predictions),
-        'f1': f1_score(y_true=y_test_data,y_pred=predictions),
+        "model": model_type,
+        'classifier_precision': precision_score(y_true=y_test_data,y_pred=predictions),
+        'classifier_recall': recall_score(y_true=y_test_data,y_pred=predictions),
+        'classifier_f1': f1_score(y_true=y_test_data,y_pred=predictions),
         # uses probaiblities rather than binary predictions
-        'roc-auc': roc_auc_score(y_true=y_test_data,y_score=probabilities)
+        'classifier_roc-auc': roc_auc_score(y_true=y_test_data,y_score=probabilities)
     }
+
+    # save to csv after converting to dataframe (within list to prevent conversion to series)
+    results_df = pd.DataFrame([results])
+    results_df.to_csv(f"outputs/{model_type}_classifier_results.csv")
 
     return results
 
+# COMPARABLE RECOMMENDER PERFORMANCE TO BASELINES, out of the candidate records take the top 20 and check whether student used in ENTIRE future interactions
+# checking again interactions rather than y test candidates
+# as such, requires history/future interactions and also test_dataset for the student-course recommendation records
+def evaluate_ML_recommender(model, X_test_data, test_dataset,history_interactions,future_interactions, model_type='random_forest',k=20):
 
-    
+    # extract needed info for recommendations from dataset
+    recommendation_data = test_dataset[["id_student","code_module","code_presentation","id_site"]].copy()
+
+    # calculate ML score (aka probability) from X of test dataset, extract only scores for class 1 (meaning relevant) for all rows
+    recommendation_data["ML_score"] = model.predict_proba(X_test_data)[:,1]
+
+    # same process as baseline models evaluation:
+
+    # get unique student-course records for evaluated students, reset index for correct index tracking in loop
+    evaluated_students = recommendation_data[["id_student","code_module","code_presentation"]].drop_duplicates().reset_index(drop=True)
+
+    # will store each individual score here
+    ML_results = []
+
+    #iterate over each evaluated student (values are index,row where row is each evaluated student record with keys id/coures module/etc)
+    #iteration code inspired by: https://stackoverflow.com/questions/16476924/how-can-i-iterate-over-rows-in-a-pandas-dataframe
+    for index,evaluated_student in evaluated_students.iterrows():
+
+        #only print after every 100 loops, prevents heavy console logging
+        if(index % 100 == 0):
+            print("evaluating:",index)
+
+    #end inspired code
+        #items from interactions, returns series
+        history_items = history_interactions.loc[(history_interactions["id_student"]==evaluated_student["id_student"]) & 
+                                                 (history_interactions["code_module"]==evaluated_student["code_module"]) & 
+                                                 (history_interactions["code_presentation"]==evaluated_student["code_presentation"]),"id_site"]
+
+        future_items = future_interactions.loc[(future_interactions["id_student"]==evaluated_student["id_student"]) & 
+                                                 (future_interactions["code_module"]==evaluated_student["code_module"]) & 
+                                                 (future_interactions["code_presentation"]==evaluated_student["code_presentation"]),"id_site"]
+
+        #removed used resources in history from future items, as goal is to recommend new items, filter series
+        relevant_items = future_items[~future_items.isin(history_items)].unique()
+
+        #prevents divison by 0 error
+        if(len(relevant_items) == 0):
+            #student has used all future resource recommendation, no scores so skip
+            continue
+
+        # NEW: generate recommendations by ranking by highest ML score, first extract specific student's candidates
+        eval_ML_recs = recommendation_data[(recommendation_data["id_student"]==evaluated_student["id_student"]) & 
+                                                 (recommendation_data["code_module"]==evaluated_student["code_module"]) & 
+                                                 (recommendation_data["code_presentation"]==evaluated_student["code_presentation"])].copy()
+
+        # do ranking, ascending false to return highest first
+        eval_ML_recs = eval_ML_recs.sort_values(by="ML_score",ascending=False)
+
+        # only top k
+        ML_recommended_items = eval_ML_recs["id_site"].head(k)
+
+        # generate metric results
+        ML_precision = precision_k(relevant_items,ML_recommended_items,k)
+        ML_recall = recall_k(relevant_items,ML_recommended_items,k)     
+        ML_f1 = f1_score_helper(precision=ML_precision,recall=ML_recall)
+
+        #append to results for each baseline
+        ML_results.append({"id_student":evaluated_student["id_student"],
+                                   "code_module": evaluated_student["code_module"],
+                                   "code_presentation": evaluated_student["code_presentation"],
+                                   "precision":ML_precision,
+                                   "recall": ML_recall,
+                                   "f1":ML_f1})
+
+    #convert results to df for vectorized aggregation operation (mean)
+    ML_results_df = pd.DataFrame(ML_results)
+
+    #create summary of results for ML model, single object because not multiple models data stored
+    ML_summary = {
+            "precision": ML_results_df["precision"].mean(),
+            "recall": ML_results_df["recall"].mean(),
+            "f1": ML_results_df["f1"].mean(),
+        }
+
+    #saving ML model individual results in csv files for storage,removing index as it holds no meaning
+    ML_results_df.to_csv(f"outputs/{model_type}_recommender_results.csv",index=False)
+
+    # read existing evaluation summary from baseline models, index is first column where model names held
+    evaluation_summary_df = pd.read_csv('outputs/evaluation_summary.csv', index_col=0)
+
+    # create new row with model name and column values in exact same order
+    evaluation_summary_df.loc[model_type] = [ML_summary["precision"],ML_summary["recall"],ML_summary["f1"]]
+
+    # overwrite old evaluation summary with updated one
+    evaluation_summary_df.to_csv('outputs/evaluation_summary.csv')
+
+    return (ML_results_df,ML_summary)

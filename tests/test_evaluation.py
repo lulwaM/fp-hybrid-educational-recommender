@@ -105,3 +105,5 @@ class TestEvaluation(unittest.TestCase):
         self.assertGreaterEqual(1,random_scores["random_score"].values)
         self.assertLessEqual(0,random_scores["random_score"].values)
 
+    # not testing evaluate baselines/classifier because they simple use established/already tested functions
+

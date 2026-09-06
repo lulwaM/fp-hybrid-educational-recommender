@@ -17,8 +17,8 @@ from sklearn.svm import SVC
 # for saving/loading model
 import joblib
 
-# generate possible recommendations for a student-course record, k = number of candidate recommendations to generate
-def generate_candidates(id_student,interaction_data,resource_data, k=20, popularity_recs=None, collaborative_recs=None, content_recs=None):
+# generate possible recommendations for a student-course record, k = number of candidate recommendations to generate, must take course details to filter
+def generate_candidates(id_student,interaction_data,resource_data, code_module,code_presentation, k=20, popularity_recs=None, collaborative_recs=None, content_recs=None):
 
     if(popularity_recs is None or collaborative_recs is None or content_recs is None ):
         # generate scores since not generated
@@ -27,12 +27,15 @@ def generate_candidates(id_student,interaction_data,resource_data, k=20, popular
         collaborative_recs = collaborative.collaborative_scores(id_student,interaction_data)
         content_recs = content_based.content_scores(id_student,resource_data,interaction_data)
 
+    # filter to current course first then take top k
+    popularity_recs = popularity_recs[(popularity_recs["code_module"] ==code_module) & (popularity_recs["code_presentation"]==code_presentation)]
+    collaborative_recs = collaborative_recs[(collaborative_recs["code_module"] ==code_module) & (collaborative_recs["code_presentation"]==code_presentation)]
+    content_recs = content_recs[(content_recs["code_module"] ==code_module) & (content_recs["code_presentation"]==code_presentation)]
 
     # limit recommendations to top k 
     popularity_recs = popularity_recs.head(k)
     collaborative_recs = collaborative_recs.head(k)
     content_recs = content_recs.head(k)
-
 
     # create candidates with resource details + each score (using details from populariyt scores then extracting scores from each)
     candidates = popularity_recs[["id_site","code_module","code_presentation","activity_type","popularity_score"]].copy()
@@ -74,7 +77,7 @@ def create_ml_dataset(history_interactions, future_interactions,resource_data,st
     #end inspired code
 
         # generate candidate recommendations from historical interactions
-        candidates = generate_candidates(evaluated_student["id_student"],history_interactions,resource_data,k)
+        candidates = generate_candidates(evaluated_student["id_student"],history_interactions,resource_data,evaluated_student["code_module"],evaluated_student["code_presentation"],k)
 
         # make sure candidates only for this specific student-course record
         candidates = candidates[(candidates["id_student"]==evaluated_student["id_student"]) & 
