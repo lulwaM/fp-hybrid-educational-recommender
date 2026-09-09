@@ -183,3 +183,4 @@ cython_debug/
 #ADDITION: ignore raw and processed datasets due to file size limit
 data/raw/*.csv
 data/processed/*.csv
+data/processed/cross_validation/*.csv

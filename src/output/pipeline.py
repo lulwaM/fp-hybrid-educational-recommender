@@ -52,13 +52,13 @@ def check_baselines_working():
 # check_baselines_working()
 
 #BASELINE RECOMMENDERS EVALUATION for top 20 recommendation
-history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
-k = 20
+# history_interactions, future_interactions = evaluation.temporal_split(processed_datasets["vle_data"],86)
+# k = 20
 
 # evaluation.evaluate_baseline_models_single(history_interactions,future_interactions,processed_datasets["resource_data"],evaluated_student,k)
 
 # OLD, uses >86 for evaluation. will use >150 to evaluate later on, same as ML model
-# results, summary = evaluation.evaluate_baseline_models_overall(history_interactions,future_interactions,processed_datasets["resource_data"],k)
+# results, summary = evaluation.evaluate_baseline_models_overall(history_interactions,future_interactions,processed_datasets["resource_data"],k, True)
 # print(summary)
 
 #save visualizations in images folder
@@ -76,20 +76,20 @@ k = 20
 # ML RANKING MODEL
 
 # cutoff days, median (86) and less than max (269)
-training_cutoff = 86
-test_cutoff = 150
+# training_cutoff = 86
+# test_cutoff = 150
 
 # 1. cutoff into ML periods
-(training_history_vle,training_future_vle,test_history_vle,test_future_vle) = evaluation.ml_temporal_split(processed_datasets["vle_data"],training_cutoff,test_cutoff)
+# (training_history_vle,training_future_vle,test_history_vle,test_future_vle) = evaluation.ml_temporal_split(processed_datasets["vle_data"],training_cutoff,test_cutoff)
 
 #2. aggregate vle into interaction data so that recommenders can use in producing scores
-training_history = evaluation.aggregate_interaction_data(training_history_vle)
-training_future = evaluation.aggregate_interaction_data(training_future_vle)
-test_history = evaluation.aggregate_interaction_data(test_history_vle)
-test_future = evaluation.aggregate_interaction_data(test_future_vle)
+# training_history = evaluation.aggregate_interaction_data(training_history_vle)
+# training_future = evaluation.aggregate_interaction_data(training_future_vle)
+# test_history = evaluation.aggregate_interaction_data(test_history_vle)
+# test_future = evaluation.aggregate_interaction_data(test_future_vle)
 
 # baseline models evaluation, using same testing cutoff so all training data before it used for recs then after it for target (no need training because its not a real model)
-# results, summary = evaluation.evaluate_baseline_models_overall(test_history,test_future,processed_datasets["resource_data"],k)
+# results, summary = evaluation.evaluate_baseline_models_overall(test_history,test_future,processed_datasets["resource_data"],k, True)
 # print("Baseline models results",summary)
 
 #3. create student features for training/test as per cutoffs
@@ -108,15 +108,15 @@ test_future = evaluation.aggregate_interaction_data(test_future_vle)
 # test_dataset.to_csv("data/processed/ml_test.csv", index=False)
 
 # after I run once, just read it from the file rather than running again, specify data type for disability bceause keep getting warning for it
-training_dataset = pd.read_csv("data/processed/ml_training.csv", dtype={'disability':'boolean'})
-test_dataset = pd.read_csv("data/processed/ml_test.csv", dtype={'disability':'boolean'})
+# training_dataset = pd.read_csv("data/processed/ml_training.csv", dtype={'disability':'boolean'})
+# test_dataset = pd.read_csv("data/processed/ml_test.csv", dtype={'disability':'boolean'})
 
 # check if it works
 # print("target",training_dataset["target"].value_counts())
 # print("content score",test_dataset["content_score"].value_counts())
 
 # 5. create X/y for training/testing from the ML dataset
-X_train, y_train, X_test, y_test = ranking.prepare_model_input(training_dataset,test_dataset)
+# X_train, y_train, X_test, y_test = ranking.prepare_model_input(training_dataset,test_dataset)
 
 # check it works
 # print("X",X_train.head(5))
@@ -172,3 +172,13 @@ X_train, y_train, X_test, y_test = ranking.prepare_model_input(training_dataset,
 # by classifier (but sampled)
 # rf_results = evaluation.evaluate_ML_classifier(rf_model,X_test,y_test, 'random_forest','random_forest_sample_classifier_results')
 # svc_results = evaluation.evaluate_ML_classifier(svc_model,X_test,y_test, 'SVC','SVC_sample_classifier_results')
+
+# CROSS VALIDATION EVALUATION
+# cutoff_days = [60,120,180]
+# test_size = 60
+
+# baseline_cv_results, baseline_cv_summary = evaluation.temporal_cv_baselines(processed_datasets["vle_data"],processed_datasets["resource_data"],cutoff_days,test_size,20)
+# print(baseline_cv_summary)
+
+# ML_cv_results, ML_cv_summary = evaluation.temporal_cv_ML_model(processed_datasets,cutoff_days,test_size,"random_forest",20)
+# print(ML_cv_summary)

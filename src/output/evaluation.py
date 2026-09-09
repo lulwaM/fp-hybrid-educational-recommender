@@ -9,8 +9,13 @@ from src.recommenders import ranking
 
 from src.output import explanation
 
+from src.data_handling import feature_engineering
+
 # for ML model evaluation
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
+
+# for saving
+from pathlib import Path
 
 # global pandas settings to display dataframe in terminal without truncation
 # code copied from: https://builtin.com/data-science/pandas-show-all-columns
@@ -223,7 +228,7 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
 
 #USED FOR OVERALL EVALUATION, all eligible students
 #note that resource data required for content based filtering
-def evaluate_baseline_models_overall(history_interactions, future_interactions,resource_data,k):
+def evaluate_baseline_models_overall(history_interactions, future_interactions,resource_data,k, saveData=True):
 
     #get dataframe of non-duplicate students in historica and future interactions separately
     historical_students = history_interactions[["id_student","code_module","code_presentation"]].drop_duplicates()
@@ -384,18 +389,18 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
     results = {"popularity":popularity_results_df,"collaborative":collaborative_results_df,
                "content":content_results_df, "hybrid":hybrid_results_df, "random": random_results_df}
 
-    #saving each baseline individual results in csv files for storage,removing index as they hold no meaning
-    results["popularity"].to_csv("outputs/popularity_results.csv",index=False)
-    results["collaborative"].to_csv("outputs/collaborative_results.csv",index=False)
-    results["content"].to_csv("outputs/content_results.csv",index=False)
-    results["hybrid"].to_csv("outputs/hybrid_results.csv",index=False)
-    results["random"].to_csv("outputs/random_results.csv",index=False)
+    if saveData == True:
+        #saving each baseline individual results in csv files for storage,removing index as they hold no meaning
+        results["popularity"].to_csv("outputs/popularity_results.csv",index=False)
+        results["collaborative"].to_csv("outputs/collaborative_results.csv",index=False)
+        results["content"].to_csv("outputs/content_results.csv",index=False)
+        results["hybrid"].to_csv("outputs/hybrid_results.csv",index=False)
+        results["random"].to_csv("outputs/random_results.csv",index=False)
 
     #also saving summary in a csv file for storage, but must convert to dataframe first to use the to_csv pandas method
     #note that it is transposed so that the indices represent each model rather than the precision/recall values, easier to understand
-    summary_df = pd.DataFrame(summary).T
-    summary_df.to_csv("outputs/recommender_summary.csv")
-
+        summary_df = pd.DataFrame(summary).T
+        summary_df.to_csv("outputs/recommender_summary.csv")    
 
     return (results,summary)
 
@@ -544,3 +549,148 @@ def save_ML_comparison_results(RF_summary, SVC_summary):
     #note that it is transposed so that the indices represent each model rather than the precision/recall values, easier to understand
     comparison_df = pd.DataFrame(comparison).T
     comparison_df.to_csv("outputs/ml_model_comparison.csv")
+
+# for cross validation evaluation, basically follows the logic of sklearn's TimeSeriesSplit but manually (https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html)
+
+# instead of passing history/future like in earlier evaluation of hold out, passing entire VLE to do separate split for each fold
+def temporal_cv_baselines(vle_data,resource_data,cutoff_days,test_size,k=20):
+
+    results = []
+
+    # code structure of iteration inspired by: https://blog.devgenius.io/how-to-implement-time-series-cross-validation-in-python-1ce8aa6f9a6c
+    # keeping track of index and value via enumerate, setting index to start from 1 instead of 0 because fold 1/2/3 not fold 0/1/2
+    for fold, cutoff_day in enumerate(cutoff_days,start=1):
+
+        print("fold",fold)
+
+        # final day for current fold
+        test_end = cutoff_day + test_size
+
+        # restrict interactions to be max= history + test size
+        fold_vle = vle_data[vle_data["date"]<=test_end].copy()
+
+        # split fold data into history/future interactions for recommenders as per cutoff day
+        history_interactions, future_interactions = temporal_split(fold_vle,cutoff_day)
+
+        # run evaluation, not saving results because saving for fold later
+        fold_results, fold_summary = evaluate_baseline_models_overall(history_interactions,future_interactions,resource_data,k, False)
+
+        # storing results from current fold, note that summary is object of objects where outer key is recommender type and inner key evaluation metric
+        for recommender, metrics in fold_summary.items():
+            results.append({'fold':fold,
+                            'cutoff_day': cutoff_day,
+                            "test_end": test_end,
+                            'recommender':recommender,
+                            'precision':metrics["precision"],
+                            "recall":metrics["recall"],
+                            "f1":metrics["f1"]})
+
+    # end inspired code
+
+    # once populated, convert to dataframe
+    results_df = pd.DataFrame(results)
+
+    # save overall results for all folds, removing idnex no meaning
+    results_df.to_csv("outputs/cross_validation/baselines_cv_results.csv", index=False)
+
+    # get summary by averaging results across all folds, grouping by each recommender folds, extracting the metrics, and calling mean
+    average_results = results_df.groupby("recommender")[["precision","recall","f1"]].mean()
+
+    # save summary
+    average_results.to_csv("outputs/cross_validation/baselines_cv_summary.csv")
+
+    # return individual and overall results
+    return results_df, average_results
+
+# similar structure to baseline models with additional logic for training/testing cutoff
+# also note that entire datasets passed as parameter because needed in creating student features for learning model
+def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
+
+    results = []
+
+    # code structure of iteration inspired by: https://blog.devgenius.io/how-to-implement-time-series-cross-validation-in-python-1ce8aa6f9a6c
+    # keeping track of index and value via enumerate, setting index to start from 1 instead of 0 because fold 1/2/3 not fold 0/1/2
+    # DIFFERENCE FOR ML: each cutoff day refers to test cutoff, where test end > days > test cutofff are evaluated for predictions
+    for fold, test_cutoff in enumerate(cutoff_days,start=1):
+
+        print("fold",fold)
+
+        # final day for current fold
+        test_end = test_cutoff + test_size
+
+        # must calculate training cutoff, where split history (before test cutoff) into 2 for history learning and future labels. BUT test cutoff and above until test end reserved for predictions (no leakage)
+        # the future will have same size as test size with the rest starting from earliest VLE date as history learning, design choice
+        # so training structure will be where train history is everything < training cutoff and train future is training cutoff < train future < test cutoff
+        training_cutoff = test_cutoff - test_size
+
+        # restrict interactions to be max= test cutoff + test size
+        fold_vle = datasets["vle_data"][datasets["vle_data"]["date"]<=test_end].copy()
+
+        # now follow exact same process of pipelien evaluation
+
+        #1. this split for history/future already done by function call, where test history is everything < test cutoff and test future is test cutoff < test future <= test end by using fold vle
+        (training_history_vle,training_future_vle,test_history_vle,test_future_vle) = ml_temporal_split(fold_vle,training_cutoff,test_cutoff)
+
+        #2. aggregate vle into interaction data so that recommenders can use in producing scores
+        training_history = aggregate_interaction_data(training_history_vle)
+        training_future = aggregate_interaction_data(training_future_vle)
+        test_history = aggregate_interaction_data(test_history_vle)
+        test_future = aggregate_interaction_data(test_future_vle)
+
+        #3. create student features for training/test as per cutoffs used for no data leakage
+        training_student_features = feature_engineering.create_features(datasets, training_cutoff)
+        test_student_features = feature_engineering.create_features(datasets, test_cutoff)
+
+        #4. prepare ML dataset for all student-course rows, save to csv to prevent running again and again if already present
+        # code to check if file exists copied from: https://mimo.org/tutorials/python/how-to-check-if-a-file-exists-in-python
+        training_dataset_path = Path(f"data/processed/cross_validation/ml_training_fold_{fold}.csv")
+        test_dataset_path = Path(f"data/processed/cross_validation/ml_test_fold_{fold}.csv")
+        # end copied code
+
+        if training_dataset_path.exists():
+            training_dataset = pd.read_csv(training_dataset_path, dtype={'disability':'boolean'})
+        else:
+            training_dataset = ranking.create_ml_dataset(training_history,training_future,datasets["resource_data"],training_student_features,k)
+            training_dataset.to_csv(training_dataset_path, index=False)
+
+        if test_dataset_path.exists():
+            test_dataset = pd.read_csv(test_dataset_path, dtype={'disability':'boolean'})
+        else:
+            test_dataset = ranking.create_ml_dataset(test_history,test_future,datasets["resource_data"],test_student_features,k)
+            test_dataset.to_csv(test_dataset_path, index=False)
+
+        # 5. create X/y for training/testing from the ML dataset
+        X_train, y_train, X_test, y_test = ranking.prepare_model_input(training_dataset,test_dataset)
+
+        # 6. create model and fit with training data. no need to save because running this is not very time consuming, only the dataset really
+        ML_model = ranking.create_ML_model(X_train,y_train,model_type)
+
+        # 7. evaluate model with testing data (as recommender, not classifier, also not saving yet will save later
+        # # @20 recommender results, must use interactions because checking recs across all interactions
+        (ML_results,ML_summary) = evaluate_ML_recommender(ML_model,X_test_data=X_test,test_dataset=test_dataset,history_interactions=test_history,future_interactions=test_future,model_type=model_type,k=k)
+
+        results.append({'fold':fold,
+                        'test_cutoff': test_cutoff,
+                        'training_cutoff': training_cutoff,
+                        "test_end": test_end,
+                        'recommender':model_type,
+                        'precision':ML_summary["precision"],
+                        "recall":ML_summary["recall"],
+                        "f1":ML_summary["f1"]})
+
+    # end inspired code
+
+    # once populated, convert to dataframe
+    results_df = pd.DataFrame(results)
+
+    # save overall results for all folds, removing idnex no meaning
+    results_df.to_csv(f"outputs/cross_validation/ML_cv_{model_type}_results.csv", index=False)
+
+    # get summary by averaging, no need to group because all folds belong to single ML model recommender
+    average_results = results_df[["precision","recall","f1"]].mean()
+
+    # save summary
+    average_results.to_csv(f"outputs/cross_validation/ML_cv_{model_type}_summary.csv")
+
+    # return individual and overall results
+    return results_df, average_results
