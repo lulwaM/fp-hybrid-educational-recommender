@@ -107,5 +107,76 @@ class TestEvaluation(unittest.TestCase):
         self.assertGreaterEqual(1,random_scores["random_score"].values)
         self.assertLessEqual(0,random_scores["random_score"].values)
 
-    # not testing evaluate baselines/classifier because they simple use established/already tested functions
+    # 4. f1 score helper function
 
+    def test_f1_zero(self):
+        precision = 0
+        recall = 0
+
+        f1_score = evaluation.f1_score_helper(precision,recall)
+
+        # should return 0 if both precision and recall 0 (no division by 0 error)
+        self.assertEqual(f1_score,0)
+
+    def test_f1_value(self):
+        precision = 0.3
+        recall = 0.5
+
+        f1_score = evaluation.f1_score_helper(precision,recall)
+
+
+        # formula is 2 * ((precision*recall)/(precision+recall)) = 2 * ((0.3*0.5)/(0.3+0.5)) = 0.375 via calculator
+        # using almost equal because or test failure where the value is 0.3749999
+        self.assertAlmostEqual(f1_score,0.375)
+
+
+    # 5. ml temporal split function
+
+    def test_ml_temporal_split_training_cutoff(self):
+
+        #setting cutoff days 1 and 3 (both exist as per sample data)
+        (training_history_vle,training_future_vle,test_history_vle,test_future_vle) = evaluation.ml_temporal_split(self.processed_datasets["vle_data"],training_cutoff=1,test_cutoff=3)
+
+        #training history = date <= trainin gcutoff
+        self.assertTrue((training_history_vle["date"]<=1).all())
+
+        # training future = test cutoff >= date > training cutoff
+        self.assertTrue(((training_future_vle["date"]<=3) & (training_future_vle["date"]>1)).all())
+
+
+    def test_ml_temporal_split_test_cutoff(self):
+
+        #setting cutoff days 1 and 3 (both exist as per sample data)
+        (training_history_vle,training_future_vle,test_history_vle,test_future_vle) = evaluation.ml_temporal_split(self.processed_datasets["vle_data"],training_cutoff=1,test_cutoff=3)
+
+        # test history = date <= test cutoff
+        self.assertTrue((test_history_vle["date"]<=3).all())
+
+        # test future = date > test cutoff
+        self.assertTrue((test_future_vle["date"]>3).all())
+
+
+    # 6. aggregate interaction data function
+    
+    def test_aggregate_interaction_columns(self):
+
+        aggregate_result = evaluation.aggregate_interaction_data(vle_data=self.processed_datasets["vle_data"])
+
+        #all new variables created via aggregation + existing student/resource info (note that the order remains same as creation to prevent test fail)
+        self.assertEqual(["id_student","code_module","code_presentation","id_site","activity_type","total_resource_clicks","first_used","last_used","click_duration"], aggregate_result.columns.to_list())
+
+    def test_aggregate_interaction_values(self):
+
+        aggregate_result = evaluation.aggregate_interaction_data(vle_data=self.processed_datasets["vle_data"])
+
+        # student 2 has one intereaction with resource site 201, clicks=14 at day=5
+        student_2_site_201 = aggregate_result[(aggregate_result["id_student"]==2)&(aggregate_result["id_site"]==201)].iloc[0]
+
+        # check these values
+        self.assertEqual(student_2_site_201["total_resource_clicks"],14)
+        self.assertEqual(student_2_site_201["first_used"],5)
+        self.assertEqual(student_2_site_201["last_used"],5)
+        # click duration is last used - first used = 5 -5 = 0
+        self.assertEqual(student_2_site_201["click_duration"],0)
+
+    # not testing evaluate baselines/classifier/recommenders because they simple use library established/already tested functions

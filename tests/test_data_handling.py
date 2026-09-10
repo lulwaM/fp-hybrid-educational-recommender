@@ -9,6 +9,7 @@ from tests.sample_data import create_datasets
 
 #functions to be tested
 from src.data_handling import preprocessing
+from src.data_handling import feature_engineering
 
 class TestPreprocessing(unittest.TestCase):
 
@@ -153,11 +154,161 @@ class TestPreprocessing(unittest.TestCase):
                                        processed_result["interaction_data"]["last_used"]-processed_result["interaction_data"]["first_used"], check_names=False )
         #end inspired code
 
-    # MUST TEST FEATURE ENGINEERING
+
+    # now feature engineering functions
+
+    # 5. filter data by cutoff function
+
+    def test_filter_data_cutoff(self):
+        merged_result = preprocessing.merge_datasets(self.datasets)
+        cleaned_result = preprocessing.clean_datasets(merged_result)
+        typecast_result = preprocessing.typecasting_datasets(cleaned_result)
+        processed_result = preprocessing.processing_datasets(typecast_result)
+
+        cutoff_result = feature_engineering.filter_data_by_cutoff(datasets=processed_result,cutoff_day=10)
+
+        # assert features for dates are <= cutoff day of 10, using all method because ocnverts to boolean value true if condition holds for all records
+        self.assertTrue((cutoff_result["assessment_data"]["date_submitted"]<=10).all())
+
+        self.assertTrue((cutoff_result["vle_data"]["date"]<=10).all())
+
+        self.assertTrue((cutoff_result["student_data"]["date_registration"]<=10).all())
 
 
+    def test_filter_data_leakage(self):
+        merged_result = preprocessing.merge_datasets(self.datasets)
+        cleaned_result = preprocessing.clean_datasets(merged_result)
+        typecast_result = preprocessing.typecasting_datasets(cleaned_result)
+        processed_result = preprocessing.processing_datasets(typecast_result)
 
-    # not testing exploration becuase only data visualizations based on already tested data is done
+        cutoff_result = feature_engineering.filter_data_by_cutoff(datasets=processed_result,cutoff_day=10)
+
+        # interaction data removed to prevent leakage
+        self.assertNotIn("interaction_data",cutoff_result)
+
+        # specific long term features removed to prevent leakage that is unintended
+
+        self.assertNotIn("registration_duration",cutoff_result["student_data"].columns)
+        self.assertNotIn("final_result",cutoff_result["student_data"].columns)
+        self.assertNotIn("withdrew",cutoff_result["student_data"].columns)
+        self.assertNotIn("date_unregistration",cutoff_result["student_data"].columns)
+
+        self.assertNotIn("average_score",cutoff_result["assessment_data"].columns)
+
+
+    # 6. create assessment features function
+
+    def test_assessment_features_created(self):
+        merged_result = preprocessing.merge_datasets(self.datasets)
+        cleaned_result = preprocessing.clean_datasets(merged_result)
+        typecast_result = preprocessing.typecasting_datasets(cleaned_result)
+        processed_result = preprocessing.processing_datasets(typecast_result)
+
+        assessment_features = feature_engineering.create_assessment_features(assessment_data=processed_result["assessment_data"])
+
+        # check for the feature engineered columns
+        self.assertIn("average_score",assessment_features.columns)
+        self.assertIn("min_score",assessment_features.columns)
+        self.assertIn("max_score",assessment_features.columns)
+        self.assertIn("assessments_submitted",assessment_features.columns)
+        self.assertIn("assessment_type_diversity",assessment_features.columns)
+
+    def test_assessment_features_values(self):
+        merged_result = preprocessing.merge_datasets(self.datasets)
+        cleaned_result = preprocessing.clean_datasets(merged_result)
+        typecast_result = preprocessing.typecasting_datasets(cleaned_result)
+        processed_result = preprocessing.processing_datasets(typecast_result)
+
+        assessment_features = feature_engineering.create_assessment_features(assessment_data=processed_result["assessment_data"])
+
+        # looking at sample data, these should be the values for student 2's engineered columns (only 1 assessment submitted with score of 60)
+        # getting first row of features (only 1)
+        student_2_features = assessment_features[assessment_features["id_student"]==2].iloc[0]
+
+        # check expected values
+        self.assertEqual(student_2_features["average_score"],60)
+        self.assertEqual(student_2_features["min_score"],60)
+        self.assertEqual(student_2_features["max_score"],60)
+        self.assertEqual(student_2_features["assessments_submitted"],1)
+
+
+    # 7. create vle features function
+
+    def test_vle_features_created(self):
+        merged_result = preprocessing.merge_datasets(self.datasets)
+        cleaned_result = preprocessing.clean_datasets(merged_result)
+        typecast_result = preprocessing.typecasting_datasets(cleaned_result)
+        processed_result = preprocessing.processing_datasets(typecast_result)
+
+        vle_features = feature_engineering.create_vle_features(vle_data=processed_result["vle_data"])
+
+        # check for the feature engineered columns
+        self.assertIn("total_resource_clicks",vle_features.columns)
+        self.assertIn("average_resource_clicks",vle_features.columns)
+        self.assertIn("first_used",vle_features.columns)
+        self.assertIn("last_used",vle_features.columns)
+        self.assertIn("resources_used",vle_features.columns)
+        self.assertIn("interaction_duration",vle_features.columns)
+
+
+    def test_vle_features_values(self):
+        merged_result = preprocessing.merge_datasets(self.datasets)
+        cleaned_result = preprocessing.clean_datasets(merged_result)
+        typecast_result = preprocessing.typecasting_datasets(cleaned_result)
+        processed_result = preprocessing.processing_datasets(typecast_result)
+
+        vle_features = feature_engineering.create_vle_features(vle_data=processed_result["vle_data"])
+
+        # looking at sample data, these should be the values for student 2's engineered columns (only 1 interaction 14 clicks used day=5 so duration is 5-5=0)
+        # getting first row of features (only 1)
+        student_2_features = vle_features[vle_features["id_student"]==2].iloc[0]
+
+        # check expected values
+        self.assertEqual(student_2_features["total_resource_clicks"],14)
+        self.assertEqual(student_2_features["total_resource_clicks"],14)
+        self.assertEqual(student_2_features["resources_used"],1)
+        self.assertEqual(student_2_features["first_used"],5)
+        self.assertEqual(student_2_features["last_used"],5)
+        self.assertEqual(student_2_features["interaction_duration"],0)
+
+    # 8. create features function
+
+    def test_create_features_created(self):
+        merged_result = preprocessing.merge_datasets(self.datasets)
+        cleaned_result = preprocessing.clean_datasets(merged_result)
+        typecast_result = preprocessing.typecasting_datasets(cleaned_result)
+        processed_result = preprocessing.processing_datasets(typecast_result)
+
+        features = feature_engineering.create_features(datasets=processed_result,cutoff_day=10)
+
+        # assesment features present
+        self.assertIn("average_score",features.columns)
+        self.assertIn("assessments_submitted",features.columns)
+
+        # vle features present
+        self.assertIn("total_resource_clicks",features.columns)
+        self.assertIn("first_used",features.columns)
+
+        # custom student feature present
+        self.assertIn("days_registered",features.columns)
+
+    def test_create_features_cutoff(self):
+
+        merged_result = preprocessing.merge_datasets(self.datasets)
+        cleaned_result = preprocessing.clean_datasets(merged_result)
+        typecast_result = preprocessing.typecasting_datasets(cleaned_result)
+        processed_result = preprocessing.processing_datasets(typecast_result)
+
+        features = feature_engineering.create_features(datasets=processed_result,cutoff_day=10)
+
+        # date feature less than or equal cutoff
+        self.assertTrue((features["date_registration"]<=10).all())
+
+        # no leaking column
+        self.assertNotIn("date_unregistration",features.columns)
+
+
+    # not testing exploration file functions becuase only data visualizations and is based on already tested functions/data
 
 #code copied from: https://docs.python.org/3/library/unittest.html
 #used to run tests
