@@ -194,3 +194,15 @@ def processing_datasets(datasets):
 
     return processed_datasets
 
+# does the entire pipeline and returns processed result
+def preprocess_datasets():
+
+    loaded_datasets = load_datasets()
+    merged_datasets = merge_datasets(loaded_datasets)
+    cleaned_datasets = clean_datasets(merged_datasets)
+    typecast_datasets = typecasting_datasets(cleaned_datasets)
+    processed_datasets = processing_datasets(typecast_datasets)
+
+    return processed_datasets
+
+

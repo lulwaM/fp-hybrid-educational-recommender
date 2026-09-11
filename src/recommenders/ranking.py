@@ -179,6 +179,52 @@ def prepare_model_input(training_dataset, test_dataset):
     # return train/test X/y
     return (X_train, y_train, X_test, y_test)
 
+# USED only in final API recommendations, copied from prepare model input but removed y part to keep X for feeding into model for predictions
+def prepare_prediction_input(ML_dataset):
+
+# copied from prepare model input but removed anything related to y (no need target)
+    # for x, select features to include for the model to learn from 
+    # full list of features:
+    # id_site,popularity_score,collaborative_score,content_score,code_module,code_presentation,activity_type,id_student,target,gender,region,highest_education,imd_band,age_band,num_of_prev_attempts,studied_credits,disability,date_registration,module_presentation_length,average_score,min_score,max_score,assessments_submitted,average_submission_date,average_assessment_weight,assessment_type_diversity,total_resource_clicks,average_resource_clicks,first_used,last_used,resources_used,interaction_duration,days_registered, resource_text
+
+    # NOTE: identifiers removed like id site/id student because they are uninformative, no numeric meaning + data privacy
+    # also, no ML specific preprocessing done yet. just choosing features
+    feature_columns= [
+        # scores, required
+        "popularity_score","collaborative_score","content_score",
+        # resource info, already includes code module/presentation/activity type so exclude that
+        "resource_text", 
+        # student profile info, excluded date registration and module presentation length because already have stronger features to learn from like days_registered and resource_text
+        "gender","region","highest_education","imd_band","age_band", "num_of_prev_attempts","studied_credits","disability",
+        # assessment features
+        "average_score","min_score","max_score","assessments_submitted","average_submission_date","average_assessment_weight","assessment_type_diversity",
+        # interaction features for VLE resources, all included because informative
+        "total_resource_clicks","average_resource_clicks","first_used","last_used","resources_used","interaction_duration","days_registered"
+        ]
+
+    # extract columns for X data
+    X = ML_dataset[feature_columns].copy()
+
+    # handle missing values to prevent crash
+    
+    # for categorical columns, pd.NaN not accepted for missing, 
+    categorical_features =[
+        "gender","region","highest_education","imd_band","age_band", "disability",
+    ]
+
+    # so convert to np.nan after converting it to object for easy processing
+    for feature in categorical_features:
+        # code to convert np.nan inspired by: https://stackoverflow.com/questions/14162723/replacing-pandas-or-numpy-nan-with-a-none-to-use-with-mysqldb
+        X[feature] = X[feature].astype(object).where(X[feature].notna(),np.nan)
+        # end inspired code
+
+
+    # text cannot be empty because then cannot be vectorized
+    X["resource_text"] = X["resource_text"].fillna("").astype(str)
+
+    # return X to feed to model for predictions
+    return X
+
 # returns fitted ML model
 def create_ML_model(X_training_data, y_training_data, model_type='random_forest'):
 

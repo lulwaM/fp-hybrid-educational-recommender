@@ -1,7 +1,7 @@
 #for data storage
 import pandas as pd
 
-#creates model interpretability, note that recommendation is a record with all the scores attached
+#creates model interpretability, note that recommendation is a record with all the scores attached, using fixed weight hybrid weights as default
 def explain_recommendation(recommendation,popularity_weight=0.4,content_weight=0.2,collaborative_weight=0.4):
 
     weighted_scores = {"popularity": recommendation["popularity_score"] * popularity_weight,

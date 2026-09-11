@@ -4,7 +4,7 @@ from src.recommenders import collaborative
 from src.recommenders import content_based
 from src.recommenders import hybrid, ranking
 
-from src.output import evaluation
+from src.output import evaluation, explanation
 from src.data_handling import exploration, feature_engineering
 
 from tests import sample_data
@@ -15,39 +15,88 @@ import pandas as pd
 
 #first load/merge/clean/typecast/process final data
 
-loaded_datasets = preprocessing.load_datasets()
-merged_datasets = preprocessing.merge_datasets(loaded_datasets)
-cleaned_datasets = preprocessing.clean_datasets(merged_datasets)
-typecast_datasets = preprocessing.typecasting_datasets(cleaned_datasets)
+# loaded_datasets = preprocessing.load_datasets()
+# merged_datasets = preprocessing.merge_datasets(loaded_datasets)
+# cleaned_datasets = preprocessing.clean_datasets(merged_datasets)
+# typecast_datasets = preprocessing.typecasting_datasets(cleaned_datasets)
 
-processed_datasets = preprocessing.processing_datasets(typecast_datasets)
+# processed_datasets = preprocessing.processing_datasets(typecast_datasets)
 
 evaluated_student = 11391
 
-def check_baselines_working():
-    #recommender 1: popularity
-    popularity_recs = popularity.popularity_scores(evaluated_student,processed_datasets["interaction_data"])
+# def check_baselines_working():
+#     #recommender 1: popularity
+#     popularity_recs = popularity.popularity_scores(evaluated_student,processed_datasets["interaction_data"])
 
-    print("Popularity Recommender: \n")
-    print(popularity_recs.head(5))
+#     print("Popularity Recommender: \n")
+#     print(popularity_recs.head(5))
 
-    # next is collaborative recommender, for student id 11391
-    collaborative_recs = collaborative.collaborative_scores(evaluated_student,processed_datasets["interaction_data"])
-    print("\nCollaborative Filtering Recommender: \n")
-    print(collaborative_recs.head(5))
+#     # next is collaborative recommender, for student id 11391
+#     collaborative_recs = collaborative.collaborative_scores(evaluated_student,processed_datasets["interaction_data"])
+#     print("\nCollaborative Filtering Recommender: \n")
+#     print(collaborative_recs.head(5))
 
-    #last is content based recommender, for student id 11391
-    content_recs = content_based.content_scores(evaluated_student,processed_datasets["resource_data"],processed_datasets["interaction_data"])
-    print("\nContent-based Filtering Recommender: \n")
-    print(content_recs.head(5))
+#     #last is content based recommender, for student id 11391
+#     content_recs = content_based.content_scores(evaluated_student,processed_datasets["resource_data"],processed_datasets["interaction_data"])
+#     print("\nContent-based Filtering Recommender: \n")
+#     print(content_recs.head(5))
 
-    hybrid_recs = hybrid.hybrid_scores(popularity_recs,content_recs,collaborative_recs)
-    print("\nHybrid Recommender: \n")
-    print(hybrid_recs.head(5))
+#     hybrid_recs = hybrid.hybrid_scores(popularity_recs,content_recs,collaborative_recs)
+#     print("\nHybrid Recommender: \n")
+#     print(hybrid_recs.head(5))
 
 # create function generate FINAL recommendations with all resource columns + all score columns
+# input is the identifier for student/course + preprocessed datasets + model + cutoff day for final prediction cutoff +top k results returned
+def generate_recommendations(id_student, code_module, code_presentation, datasets, model, cutoff_day, k=20):
+
+    # using simple temporal split, will just use the median here in function call becuase it was tested already in hold out validation and provides enough data
+    # NOTE: not using future interactions because no evaluation done here, just using history to produce recommendations
+    history_interactions, future_interactions = evaluation.temporal_split(datasets["vle_data"],cutoff_day)
+
+    # filter for particular student-course record
+    student_course_record = history_interactions[(history_interactions["id_student"]==id_student) & (history_interactions["code_module"]==code_module) & (history_interactions["code_presentation"]==code_presentation)]
+
+    # if does not exist, cannot produce recs
+    if student_course_record.empty:
+        raise ValueError("Student has no historical interactions with this course")
+
+    # generate candidate recs, no need to do entire pipeline of creating ML training/test because model is ready
+    candidates = ranking.generate_candidates(id_student=id_student,interaction_data=history_interactions,resource_data=datasets["resource_data"],code_module=code_module,code_presentation=code_presentation,k=k)
+
+    # if no recommendations, return empty dataframe (no error, just no recs)
+    if candidates.empty:
+        return pd.DataFrame({})
+
+    # create student's features (for ML model input) and only extract those for student being evaluated (not all)
+    student_features = feature_engineering.create_features(datasets, cutoff_day=cutoff_day)
+    student_features = student_features[(student_features["id_student"]==id_student) & (student_features["code_module"]==code_module) & (student_features["code_presentation"]==code_presentation)]
+
+    # attach student features manually instead of calling prepare ML input / create ML dataset function (because no need to create training/test)
+    ML_dataset = candidates.merge(student_features, on=["id_student", "code_module", "code_presentation"],how="left")
+
+    # prepare the dataset input into X to feed to model using helper function
+    X = ranking.prepare_prediction_input(ML_dataset)
+
+    # predict relevance scores
+    ML_dataset["ML_score"] = ranking.predict_ML_scores(model=model,X_test_data=X,model_type="random_forest")
+
+    # rank recommendations by ML score and only get top k
+    #ascending false to return highest first
+    recommendations = ML_dataset.sort_values(by="ML_score",ascending=False)
+
+    # only top k and drop index because has no meaning
+    recommendations = recommendations.head(k).reset_index(drop=True).copy()
+
+    # add interpretability via attaching explanation, note that axis=1 to apply to each recommendation row and specifying weights from function parameters to 1 (so raw baseline scores rather than fixed weight hybrid defaults)
+    recommendations["explanation"] = recommendations.apply(explanation.explain_recommendation,axis=1,popularity_weight=1,content_weight=1,collaborative_weight=1)
+
+    # return only relevant columns of identifiers for student/resource/course +scores+explanation
+    recommendations = recommendations[["id_student", "id_site","code_module", "code_presentation","popularity_score","collaborative_score","content_score","ML_score","explanation"]]
+
+    return recommendations
 
 
+    
 
 # check_baselines_working()
 
@@ -182,3 +231,10 @@ def check_baselines_working():
 
 # ML_cv_results, ML_cv_summary = evaluation.temporal_cv_ML_model(processed_datasets,cutoff_days,test_size,"random_forest",20)
 # print(ML_cv_summary)
+
+# checking if the API main function works with arbitrary values (but exist within CSV files)
+datasets = preprocessing.preprocess_datasets()
+model = ranking.load_model('models/random_forest_model.joblib')
+
+API_recs = generate_recommendations(id_student=6516,code_module="AAA",code_presentation="2014J",datasets=datasets,model=model,cutoff_day=86,k=20)
+print(API_recs)
