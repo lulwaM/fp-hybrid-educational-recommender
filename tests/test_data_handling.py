@@ -308,7 +308,7 @@ class TestPreprocessing(unittest.TestCase):
         self.assertNotIn("date_unregistration",features.columns)
 
 
-    # not testing exploration file functions becuase only data visualizations and is based on already tested functions/data
+    # not testing main preprocess dataset function and exploration file functions becuase only data visualizations and is based on already tested functions/data
 
 #code copied from: https://docs.python.org/3/library/unittest.html
 #used to run tests

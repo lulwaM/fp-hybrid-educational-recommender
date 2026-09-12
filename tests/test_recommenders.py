@@ -3,6 +3,7 @@ import unittest
 
 #for data storage
 import pandas as pd
+import numpy as np
 
 #to create sample test data and preprocessed
 from tests.sample_data import create_datasets
@@ -379,6 +380,44 @@ class TestRecommenders(unittest.TestCase):
             ranking.predict_ML_scores(None,None,model_type="error")
         #end copied code
 
-    # will not test ranking saving/loading model because they are from well-established joblib
+    # 11. prepare prediction input function
 
+    def test_prediction_input_missing(self):
+
+        # creating simple temporal split to produce history/future interactions for create ml dataset function, choosing cutoff = 1 because it exists for sample data
+        history_interactions, future_interactions = evaluation.temporal_split(vle_data=self.processed_datasets["vle_data"],cutoff_day=1)
+
+        # also creating features for function, same cutoff day of 1
+        student_features = feature_engineering.create_features(datasets=self.processed_datasets,cutoff_day=1)
+
+        # create ml dataset to PREPARE MODEL INPUT
+        ml_dataset = ranking.create_ml_dataset(history_interactions=history_interactions,future_interactions=future_interactions,resource_data=self.processed_datasets["resource_data"],student_features=student_features,k=20)
+
+        # simulate missing resource text, should be filled with empty string
+        ml_dataset.loc[0,"resource_text"] = np.nan
+
+        X = ranking.prepare_prediction_input(ML_dataset=ml_dataset)
+
+        # X should fill the NaN with empty string
+        self.assertEqual(X.loc[0,"resource_text"],"")
+
+    def test_prediction_input_features(self):
+
+        # creating simple temporal split to produce history/future interactions for create ml dataset function, choosing cutoff = 1 because it exists for sample data
+        history_interactions, future_interactions = evaluation.temporal_split(vle_data=self.processed_datasets["vle_data"],cutoff_day=1)
+
+        # also creating features for function, same cutoff day of 1
+        student_features = feature_engineering.create_features(datasets=self.processed_datasets,cutoff_day=1)
+
+        # create ml dataset to PREPARE MODEL INPUT
+        ml_dataset = ranking.create_ml_dataset(history_interactions=history_interactions,future_interactions=future_interactions,resource_data=self.processed_datasets["resource_data"],student_features=student_features,k=20)
+
+        # both the X from prepare model input and prepare prediction input should have exact same features
+        X_prediction = ranking.prepare_prediction_input(ML_dataset=ml_dataset)
+        # NOTE: supplying same dataset for training and test because this test does not evaluate uniqueness, simply evaluates structure of data returned
+        (X_train, y_train, X_test, y_test) = ranking.prepare_model_input(training_dataset=ml_dataset,test_dataset=ml_dataset)
+
+        self.assertEqual(X_prediction.columns.to_list(),X_train.columns.to_list())
+
+    # will not test ranking saving/loading model because they are from well-established joblib
 

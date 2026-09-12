@@ -233,8 +233,8 @@ def generate_recommendations(id_student, code_module, code_presentation, dataset
 # print(ML_cv_summary)
 
 # checking if the API main function works with arbitrary values (but exist within CSV files)
-datasets = preprocessing.preprocess_datasets()
-model = ranking.load_model('models/random_forest_model.joblib')
+# datasets = preprocessing.preprocess_datasets()
+# model = ranking.load_model('models/random_forest_model.joblib')
 
-API_recs = generate_recommendations(id_student=6516,code_module="AAA",code_presentation="2014J",datasets=datasets,model=model,cutoff_day=86,k=20)
-print(API_recs)
+# API_recs = generate_recommendations(id_student=6516,code_module="AAA",code_presentation="2014J",datasets=datasets,model=model,cutoff_day=86,k=20)
+# print(API_recs)
