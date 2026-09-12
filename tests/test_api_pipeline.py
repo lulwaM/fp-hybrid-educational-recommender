@@ -1,11 +1,12 @@
 #python testing framework
 import unittest
 
+# for mocking
+from unittest.mock import patch
+
 # for testing API
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-# must use same app
-from src.output.api import app
 
 #for data storage
 import pandas as pd
@@ -17,6 +18,13 @@ from src.data_handling import preprocessing
 
 #function to be tested
 from src.output import pipeline
+
+# prevents github action error by giving empty values for automatically executed function, code copied and adapted from: https://stackoverflow.com/questions/16134281/python-mocking-a-function-from-an-imported-module
+with patch('src.data_handling.preprocessing.preprocess_datasets', return_value = {}), \
+    patch('src.recommenders.ranking.load_model', return_value = None):
+    # must use same app
+    from src.output.api import app
+# end copied and adapted code
 
 class TestAPIPipeline(unittest.TestCase):
 
