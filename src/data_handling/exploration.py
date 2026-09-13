@@ -10,7 +10,7 @@ def explore_student_data(student_data):
     student_data["gender"].value_counts().plot(kind='pie',autopct='%1.1f%%')
     plt.title('Gender Distribution for Students')
     plt.tight_layout()
-    plt.savefig('images/exploration/student_data/student_gender.png')
+    plt.savefig('images/student_data/student_gender.png')
     #end inspired code
 
     #clear figure
@@ -24,7 +24,7 @@ def explore_student_data(student_data):
     # needed to stop cutting off the xlabel, code inspiration from: https://stackoverflow.com/questions/13073045/matplotlib-savefig-size-control
     plt.tight_layout()
     #end inspired code
-    plt.savefig('images/exploration/student_data/student_modules.png')
+    plt.savefig('images/student_data/student_modules.png')
 
     #clear figure
     plt.clf()
@@ -35,7 +35,7 @@ def explore_student_data(student_data):
     plt.xlabel('region')
     plt.ylabel('count')
     plt.tight_layout()
-    plt.savefig('images/exploration/student_data/student_regions.png')
+    plt.savefig('images/student_data/student_regions.png')
 
     #clear figure
     plt.clf()
@@ -44,7 +44,7 @@ def explore_student_data(student_data):
     student_data["final_result"].value_counts().plot(kind='pie',autopct='%1.1f%%')
     plt.title('Final Result Distribution for Students')
     plt.tight_layout()
-    plt.savefig('images/exploration/student_data/student_final_results.png')
+    plt.savefig('images/student_data/student_final_results.png')
 
     #clear figure
     plt.clf()
@@ -54,7 +54,7 @@ def explore_student_data(student_data):
     plt.title('Registration Duration Box Plot for Students')
     plt.ylabel('days')
     plt.tight_layout()
-    plt.savefig('images/exploration/student_data/student_registration_duration.png')
+    plt.savefig('images/student_data/student_registration_duration.png')
 
     #clear figure
     plt.clf()
@@ -63,7 +63,7 @@ def explore_student_data(student_data):
     student_data["disability"].value_counts().plot(kind='pie',autopct='%1.1f%%')
     plt.title('Disability Distribution for Students')
     plt.tight_layout()
-    plt.savefig('images/exploration/student_data/student_disability.png')
+    plt.savefig('images/student_data/student_disability.png')
 
     #clear figure
     plt.clf()
@@ -75,7 +75,7 @@ def explore_assessment_data(assessment_data):
     assessment_data["assessment_type"].value_counts().plot(kind='pie',autopct='%1.1f%%')
     plt.title('Type Distribution for Asssessments')
     plt.tight_layout()
-    plt.savefig('images/exploration/assessment_data/assessment_type.png')
+    plt.savefig('images/assessment_data/assessment_type.png')
 
     #clear figure
     plt.clf()
@@ -87,7 +87,7 @@ def explore_assessment_data(assessment_data):
     plt.xlabel("average_score")
     plt.ylabel("frequency")
     plt.tight_layout()
-    plt.savefig('images/exploration/assessment_data/assessment_average_score.png')
+    plt.savefig('images/assessment_data/assessment_average_score.png')
 
     #clear figure
     plt.clf()
@@ -101,7 +101,7 @@ def explore_assessment_data(assessment_data):
     plt.xlabel("number_of_assessments")
     plt.ylabel("frequency")
     plt.tight_layout()
-    plt.savefig('images/exploration/assessment_data/assessment_taken.png')
+    plt.savefig('images/assessment_data/assessment_taken.png')
     #end inspired code
 
     #clear figure
@@ -111,7 +111,7 @@ def explore_assessment_data(assessment_data):
     assessment_data["is_banked"].value_counts().plot(kind='pie',autopct='%1.1f%%')
     plt.title('Distribution of Transferred Assessment Results (banked)')
     plt.tight_layout()
-    plt.savefig('images/exploration/assessment_data/assessment_banked.png')
+    plt.savefig('images/assessment_data/assessment_banked.png')
 
     #clear figure
     plt.clf()
@@ -122,7 +122,7 @@ def explore_vle_data(vle_data):
     vle_data["activity_type"].value_counts().plot(kind='barh',color='pink')
     plt.title('Activity Type Distribution for VLE')
     plt.tight_layout()
-    plt.savefig('images/exploration/vle_data/vle_activity_type.png')
+    plt.savefig('images/vle_data/vle_activity_type.png')
 
     #clear figure
     plt.clf()
@@ -133,7 +133,7 @@ def explore_vle_data(vle_data):
     plt.xlabel("module_presentation_length")
     plt.ylabel("frequency")
     plt.tight_layout()
-    plt.savefig('images/exploration/vle_data/vle_presentation_length.png')
+    plt.savefig('images/vle_data/vle_presentation_length.png')
 
     #clear figure
     plt.clf()
@@ -146,7 +146,7 @@ def explore_resource_data(resource_data):
     plt.xlabel('code_module')
     plt.ylabel('count')
     plt.tight_layout()
-    plt.savefig('images/exploration/resource_data/vle_presentation_length.png')
+    plt.savefig('images/resource_data/resource_code_module.png')
 
     #clear figure
     plt.clf()
@@ -164,7 +164,7 @@ def explore_resource_data(resource_data):
     plt.legend(title="activity_type", bbox_to_anchor=(1, 1.02), loc='upper left')
     #end inspired code
     plt.tight_layout()
-    plt.savefig('images/exploration/resource_data/vle_module_activity.png')
+    plt.savefig('images/resource_data/vle_module_activity.png')
 
     #clear figure
     plt.clf()
@@ -179,7 +179,7 @@ def explore_interaction_data(interaction_data):
     plt.xlabel("total_resource_clicks")
     plt.ylabel("frequency")
     plt.tight_layout()
-    plt.savefig('images/exploration/interaction_data/interaction_clicks_student.png')
+    plt.savefig('images/interaction_data/interaction_clicks_student.png')
 
     #clear figure
     plt.clf()
@@ -190,7 +190,7 @@ def explore_interaction_data(interaction_data):
     plt.xlabel("click_duration")
     plt.ylabel("activity_type")
     plt.tight_layout()
-    plt.savefig('images/exploration/interaction_data/interaction_average_clicks_activity.png')
+    plt.savefig('images/interaction_data/interaction_average_clicks_activity.png')
 
     #clear figure
     plt.clf()

@@ -10,11 +10,8 @@ app = FastAPI(title="Educational Content Recommender API", description="Returns 
 
 
 # first, do actions before any route to do it once (not re-load each time)
-
-datasets = preprocessing.preprocess_datasets()
+datasets = preprocessing.load_api_datasets()
 model = ranking.load_model('models/random_forest_model.joblib')
-# median, set
-cutoff_day = 86
 # top 20 recs
 k =20
 
@@ -35,7 +32,7 @@ def get_recommendations(id_student: int, code_module: str,code_presentation:str)
     # wrap in try/except for error handling
     try: 
 
-        recommendations = pipeline.generate_recommendations(id_student=id_student,code_module=code_module,code_presentation=code_presentation,datasets=datasets,model=model,cutoff_day=cutoff_day,k=k)
+        recommendations = pipeline.generate_API_recommendations(id_student=id_student,code_module=code_module,code_presentation=code_presentation,datasets=datasets,model=model,k=k)
 
         # converting from dataframe to json to Python object to display correctly, code inspired by: https://stackoverflow.com/questions/71203579/how-to-return-a-csv-file-pandas-dataframe-in-json-format-using-fastapi
         res = recommendations.to_json(orient="records")

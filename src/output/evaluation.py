@@ -228,7 +228,7 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
 
 #USED FOR OVERALL EVALUATION, all eligible students
 #note that resource data required for content based filtering
-def evaluate_baseline_models_overall(history_interactions, future_interactions,resource_data,k, saveData=True):
+def evaluate_baseline_models_overall(history_interactions, future_interactions,resource_data,k, saveData=True, saveSummary=True):
 
     #get dataframe of non-duplicate students in historica and future interactions separately
     historical_students = history_interactions[["id_student","code_module","code_presentation"]].drop_duplicates()
@@ -391,16 +391,19 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
 
     if saveData == True:
         #saving each baseline individual results in csv files for storage,removing index as they hold no meaning
-        results["popularity"].to_csv("outputs/popularity_results.csv",index=False)
-        results["collaborative"].to_csv("outputs/collaborative_results.csv",index=False)
-        results["content"].to_csv("outputs/content_results.csv",index=False)
-        results["hybrid"].to_csv("outputs/hybrid_results.csv",index=False)
-        results["random"].to_csv("outputs/random_results.csv",index=False)
+        results["popularity"].to_csv("outputs/baselines/popularity_results.csv",index=False)
+        results["collaborative"].to_csv("outputs/baselines/collaborative_results.csv",index=False)
+        results["content"].to_csv("outputs/baselines/content_results.csv",index=False)
+        results["hybrid"].to_csv("outputs/baselines/hybrid_results.csv",index=False)
+        results["random"].to_csv("outputs/baselines/random_results.csv",index=False)
 
+    if saveSummary == True:
     #also saving summary in a csv file for storage, but must convert to dataframe first to use the to_csv pandas method
-    #note that it is transposed so that the indices represent each model rather than the precision/recall values, easier to understand
-        summary_df = pd.DataFrame(summary).T
-        summary_df.to_csv("outputs/recommender_summary.csv")    
+
+        # using helper function, iterate over each recommender and add to file
+        for recommender, metrics in summary.items():
+
+            save_recommender_summary(summary=metrics,recommender=recommender)   
 
     return (results,summary)
 
@@ -431,14 +434,14 @@ def evaluate_ML_classifier(model, X_test_data, y_test_data,model_type,file_name)
 
     # save to csv after converting to dataframe (within list to prevent conversion to series)
     results_df = pd.DataFrame([results])
-    results_df.to_csv(f"outputs/{file_name}.csv")
+    results_df.to_csv(f"outputs/ML_classifier/{file_name}.csv",index=False)
 
     return results
 
 # COMPARABLE RECOMMENDER PERFORMANCE TO BASELINES, out of the candidate records take the top 20 and check whether student used in ENTIRE future interactions
 # checking again interactions rather than y test candidates
 # as such, requires history/future interactions and also test_dataset for the student-course recommendation records
-def evaluate_ML_recommender(model, X_test_data, test_dataset,history_interactions,future_interactions, model_type='random_forest',k=20):
+def evaluate_ML_recommender(model, X_test_data, test_dataset,history_interactions,future_interactions, model_type='random_forest',k=20, file_name='random_forest_recommender_results',saveData=True,saveSummary=True):
 
     # extract needed info for recommendations from dataset
     recommendation_data = test_dataset[["id_student","code_module","code_presentation","id_site"]].copy()
@@ -514,22 +517,36 @@ def evaluate_ML_recommender(model, X_test_data, test_dataset,history_interaction
             "f1": ML_results_df["f1"].mean(),
         }
 
-    return (ML_results_df,ML_summary)
+    if saveData == True:
 
-def save_ML_recommender_results(ML_results_df,ML_summary,file_name,model_type,saveSummary=True):
-
-    #saving ML model individual results in csv files for storage,removing index as it holds no meaning
-    ML_results_df.to_csv(f"outputs/{file_name}.csv",index=False)
+        ML_results_df.to_csv(f"outputs/ML_recommender/{file_name}.csv",index=False)
 
     if saveSummary == True:
+        save_recommender_summary(ML_summary,model_type)
+
+    return (ML_results_df,ML_summary)
+
+# add to summary file
+def save_recommender_summary(summary,recommender):
+
+    # code to check if file exists copied from: https://mimo.org/tutorials/python/how-to-check-if-a-file-exists-in-python
+    summary_path = Path("outputs/recommender_summary.csv")
+    # end copied code
+
+    if summary_path.exists():
         # read existing evaluation summary from baseline models, index is first column where model names held
         recommender_summary_df = pd.read_csv('outputs/recommender_summary.csv', index_col=0)
 
-        # create new row with model name and column values in exact same order
-        recommender_summary_df.loc[model_type] = [ML_summary["precision"],ML_summary["recall"],ML_summary["f1"]]
+    else:
+        # create empty with required columns
+        recommender_summary_df = pd.DataFrame(columns=['precision','recall','f1'])
 
-        # overwrite old evaluation summary with updated one
-        recommender_summary_df.to_csv('outputs/recommender_summary.csv')
+
+    # create new row with model name and column values in exact same order
+    recommender_summary_df.loc[recommender] = [summary["precision"],summary["recall"],summary["f1"]]
+
+    # overwrite old evaluation summary with updated one
+    recommender_summary_df.to_csv(summary_path)
 
 def save_ML_comparison_results(RF_summary, SVC_summary):
     comparison = {
@@ -548,7 +565,8 @@ def save_ML_comparison_results(RF_summary, SVC_summary):
 
     #note that it is transposed so that the indices represent each model rather than the precision/recall values, easier to understand
     comparison_df = pd.DataFrame(comparison).T
-    comparison_df.to_csv("outputs/ml_model_comparison.csv")
+    # index included because it represents ML model type
+    comparison_df.to_csv("outputs/ml_recommender_sample_comparison.csv")
 
 # for cross validation evaluation, basically follows the logic of sklearn's TimeSeriesSplit but manually (https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html)
 
@@ -573,7 +591,7 @@ def temporal_cv_baselines(vle_data,resource_data,cutoff_days,test_size,k=20):
         history_interactions, future_interactions = temporal_split(fold_vle,cutoff_day)
 
         # run evaluation, not saving results because saving for fold later
-        fold_results, fold_summary = evaluate_baseline_models_overall(history_interactions,future_interactions,resource_data,k, False)
+        fold_results, fold_summary = evaluate_baseline_models_overall(history_interactions,future_interactions,resource_data,k, False, False)
 
         # storing results from current fold, note that summary is object of objects where outer key is recommender type and inner key evaluation metric
         for recommender, metrics in fold_summary.items():
@@ -667,7 +685,7 @@ def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
 
         # 7. evaluate model with testing data (as recommender, not classifier, also not saving yet will save later
         # # @20 recommender results, must use interactions because checking recs across all interactions
-        (ML_results,ML_summary) = evaluate_ML_recommender(ML_model,X_test_data=X_test,test_dataset=test_dataset,history_interactions=test_history,future_interactions=test_future,model_type=model_type,k=k)
+        (ML_results,ML_summary) = evaluate_ML_recommender(ML_model,X_test_data=X_test,test_dataset=test_dataset,history_interactions=test_history,future_interactions=test_future,model_type=model_type,k=k,saveData=False,saveSummary=False)
 
         results.append({'fold':fold,
                         'test_cutoff': test_cutoff,
@@ -687,10 +705,13 @@ def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
     results_df.to_csv(f"outputs/cross_validation/ML_cv_{model_type}_results.csv", index=False)
 
     # get summary by averaging, no need to group because all folds belong to single ML model recommender
-    average_results = results_df[["precision","recall","f1"]].mean()
+    # must transpose after converting to dataframe because it is series to display nicely
+    # code copied and adapted from: https://stackoverflow.com/questions/43517338/transpose-a-pandas-series
+    average_results = results_df[["precision","recall","f1"]].mean().to_frame().T
+    # end adapted code
 
     # save summary
-    average_results.to_csv(f"outputs/cross_validation/ML_cv_{model_type}_summary.csv")
+    average_results.to_csv(f"outputs/cross_validation/ML_cv_{model_type}_summary.csv",index=False)
 
     # return individual and overall results
     return results_df, average_results

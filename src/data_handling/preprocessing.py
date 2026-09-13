@@ -1,6 +1,9 @@
 # for data storage
 import pandas as pd
 
+from src.output import evaluation
+from src.data_handling import feature_engineering
+
 def load_datasets():
     
     # dictionary, key=file name value=its dataframe
@@ -194,15 +197,31 @@ def processing_datasets(datasets):
 
     return processed_datasets
 
-# does the entire pipeline and returns processed result
-def preprocess_datasets():
+# precompute all data to reduce RAM usage in rdeployment
+def create_api_datasets(datasets,cutoff_day=86):
 
-    loaded_datasets = load_datasets()
-    merged_datasets = merge_datasets(loaded_datasets)
-    cleaned_datasets = clean_datasets(merged_datasets)
-    typecast_datasets = typecasting_datasets(cleaned_datasets)
-    processed_datasets = processing_datasets(typecast_datasets)
+    # MOVED FROM GENERATE RECS FUNCTION to only execute one before deployment
 
-    return processed_datasets
+    # using simple temporal split, will just use the median here in function call becuase it was tested already in hold out validation and provides enough data
+    # NOTE: not using future interactions because no evaluation done here, just using history to produce recommendations
+    history_interactions, future_interactions = evaluation.temporal_split(datasets["vle_data"],cutoff_day)
+
+    # pre compute features
+    student_features = feature_engineering.create_features(datasets, cutoff_day=cutoff_day)
 
 
+    # resource data is not temporal
+    resource_data = datasets["resource_data"].copy()
+
+    # store to separate folder of data, remove index for all because no meaning
+    history_interactions.to_csv("data/api/history_interactions.csv",index=False)
+    student_features.to_csv("data/api/student_features.csv",index=False)
+    resource_data.to_csv("data/api/resource_data.csv",index=False)
+
+def load_api_datasets():
+
+    return {
+        "history_interactions": pd.read_csv("data/api/history_interactions.csv"),
+        "student_features": pd.read_csv("data/api/student_features.csv"),
+        "resource_data": pd.read_csv("data/api/resource_data.csv"),
+    }

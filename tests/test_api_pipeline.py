@@ -20,7 +20,7 @@ from src.data_handling import preprocessing
 from src.output import pipeline
 
 # prevents github action error by giving empty values for automatically executed function, code copied and adapted from: https://stackoverflow.com/questions/16134281/python-mocking-a-function-from-an-imported-module
-with patch('src.data_handling.preprocessing.preprocess_datasets', return_value = {}), \
+with patch('src.data_handling.preprocessing.load_api_datasets', return_value = {}), \
     patch('src.recommenders.ranking.load_model', return_value = None):
     # must use same app
     from src.output.api import app
@@ -77,3 +77,5 @@ class TestAPIPipeline(unittest.TestCase):
             # id student 1 exists but has no interactions with course BBB / 2013B
             pipeline.generate_recommendations(id_student=1,code_module='BBB',code_presentation='2013B',datasets=self.processed_datasets,model=None,cutoff_day=86,k=20)
         #end copied code
+
+    # NOT testing other pipeline functions because they simply call/follow same process of already tested functions
