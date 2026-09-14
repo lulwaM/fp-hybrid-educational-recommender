@@ -614,11 +614,21 @@ def temporal_cv_baselines(vle_data,resource_data,cutoff_days,test_size,k=20):
     # get summary by averaging results across all folds, grouping by each recommender folds, extracting the metrics, and calling mean
     average_results = results_df.groupby("recommender")[["precision","recall","f1"]].mean()
 
+    # get std
+    std_results = results_df.groupby("recommender")[["precision","recall","f1"]].std()
+
+    # rename columns for clarity
+    average_results.columns = ["precision_mean","recall_mean","f1_mean"]
+    std_results.columns = ["precision_std","recall_std","f1_std"]
+
+    # combine horizontally via concat
+    summary_results = pd.concat([average_results,std_results],axis=1)
+
     # save summary
-    average_results.to_csv("outputs/cross_validation/baselines_cv_summary.csv")
+    summary_results.to_csv("outputs/cross_validation/baselines_cv_summary.csv")
 
     # return individual and overall results
-    return results_df, average_results
+    return results_df, summary_results
 
 # similar structure to baseline models with additional logic for training/testing cutoff
 # also note that entire datasets passed as parameter because needed in creating student features for learning model
@@ -708,10 +718,21 @@ def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
     # must transpose after converting to dataframe because it is series to display nicely
     # code copied and adapted from: https://stackoverflow.com/questions/43517338/transpose-a-pandas-series
     average_results = results_df[["precision","recall","f1"]].mean().to_frame().T
+
+
+    std_results = results_df[["precision","recall","f1"]].std().to_frame().T
     # end adapted code
 
+    # rename columns for clarity
+    average_results.columns = ["precision_mean","recall_mean","f1_mean"]
+    std_results.columns = ["precision_std","recall_std","f1_std"]
+
+    # use concat to combine horizontally in one row
+    summary_results = pd.concat([average_results,std_results],axis=1)
+
+
     # save summary
-    average_results.to_csv(f"outputs/cross_validation/ML_cv_{model_type}_summary.csv",index=False)
+    summary_results.to_csv(f"outputs/cross_validation/ML_cv_{model_type}_summary.csv",index=False)
 
     # return individual and overall results
-    return results_df, average_results
+    return results_df, summary_results
