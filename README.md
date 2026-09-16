@@ -21,7 +21,7 @@
 - Place its 7 CSV files into the "data/raw" folder.
 
 ### 2. Create Environment with Dependencies
-- Open a terminal and navigate to the main " fp-hybrid-educational-recommender " folder.
+- Open a terminal and navigate to the root folder.
 - Create a Conda environment with the dependenices by running " conda env create -f environment.yml -n <environment_name> ".
 - Activate the environment by running " conda activate <environment_name> ".
 - Keep terminal running.
@@ -42,7 +42,7 @@
 - Click execute to generate and view top 20 recommendations.
 
 ### 7. Running Unit Tests
-- Open a terminal and navigate to the main " fp-hybrid-educational-recommender " folder.
+- Open a terminal and navigate to the root folder.
 - Activate the created virtual environment by running "conda activate <environment_name>".
 - Run " python -m unittest discover -s tests -p 'test_*.py' " to run tests.
 
