@@ -9,7 +9,7 @@ dependencies:
   - jupyterlab
   - joblib
   - uvicorn
-  - scikit-learn
+  - scikit-learn=1.9.0
   - seaborn
   - fastapi
   - numpy
