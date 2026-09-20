@@ -70,7 +70,7 @@ class TestAPIPipeline(unittest.TestCase):
             pipeline.generate_recommendations(id_student=10,code_module='AAA',code_presentation='2013J',datasets=self.processed_datasets,model=None,cutoff_day=86,k=20)
         #end copied code
 
-    def test_pipeline_invalid_student(self):
+    def test_pipeline_invalid_course(self):
 
         #code copied from: https://stackoverflow.com/questions/129507/how-do-you-test-that-a-python-function-throws-an-exception
         with self.assertRaises(ValueError) as context:

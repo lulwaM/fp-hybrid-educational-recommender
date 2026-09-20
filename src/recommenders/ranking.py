@@ -55,7 +55,7 @@ def generate_candidates(id_student,interaction_data,resource_data, code_module,c
 
     return candidates
 
-# creates dataframe where for eah student = candidate recs generated from history interactions and targets generated from future interactions + student features attached
+# creates dataframe where for each student = candidate recs generated from history interactions and targets generated from future interactions + student features attached
 def create_ml_dataset(history_interactions, future_interactions,resource_data,student_features,k=20):
 
     #get dataframe of non-duplicate students in historica and future interactions separately

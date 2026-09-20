@@ -1,21 +1,21 @@
 id_student,id_site,code_module,code_presentation,popularity_score,collaborative_score,content_score,ML_score,explanation
-6516,877066,AAA,2014J,0.05412621359223301,0.05881689146635144,1.0,0.7555717833001278,This resource is similar to other resources that the student has interacted with
-6516,877069,AAA,2014J,0.024514563106796117,0.026184281545591236,1.0,0.7541599868165924,This resource is similar to other resources that the student has interacted with
-6516,877087,AAA,2014J,0.02459546925566343,0.029968251322805176,1.0,0.7541599868165924,This resource is similar to other resources that the student has interacted with
-6516,877075,AAA,2014J,0.13883495145631067,0.15790616405708863,1.0,0.7540883245100481,This resource is similar to other resources that the student has interacted with
-6516,877037,AAA,2014J,0.021763754045307445,0.02523431774221355,0.0,0.7535802354665474,This resource is used by students similar to the student
-6516,877038,AAA,2014J,0.02669902912621359,0.02869257502927583,0.0,0.7518626351701962,This resource is used by students similar to the student
-6516,877032,AAA,2014J,0.06990291262135923,0.08263724027432354,0.0,0.7513288554120858,This resource is used by students similar to the student
-6516,877085,AAA,2014J,0.5715210355987055,0.6070357933140315,1.0,0.7509581594343255,This resource is similar to other resources that the student has interacted with
-6516,877036,AAA,2014J,0.08001618122977346,0.09270890827493532,0.0,0.7506079632554229,This resource is used by students similar to the student
-6516,877076,AAA,2014J,0.5899676375404531,0.657698992288951,1.0,0.7502402107163768,This resource is similar to other resources that the student has interacted with
-6516,877073,AAA,2014J,0.019741100323624597,0.02239974307884242,1.0,0.7452499062640314,This resource is similar to other resources that the student has interacted with
-6516,877050,AAA,2014J,0.02087378640776699,0.021957317235149796,0.0,0.7323014977296047,This resource is used by students similar to the student
-6516,877089,AAA,2014J,0.0,0.0,1.0,0.6693312128367284,This resource is similar to other resources that the student has interacted with
-6516,877092,AAA,2014J,0.0,0.0,1.0,0.6693312128367284,This resource is similar to other resources that the student has interacted with
-6516,877090,AAA,2014J,0.0,0.0,1.0,0.6693312128367284,This resource is similar to other resources that the student has interacted with
-6516,877091,AAA,2014J,0.0,0.0,1.0,0.6693312128367284,This resource is similar to other resources that the student has interacted with
-6516,877086,AAA,2014J,0.0,0.0,1.0,0.6693312128367284,This resource is similar to other resources that the student has interacted with
-6516,877084,AAA,2014J,0.0,0.0,1.0,0.6693312128367284,This resource is similar to other resources that the student has interacted with
-6516,877100,AAA,2014J,0.0,0.0,1.0,0.6693312128367284,This resource is similar to other resources that the student has interacted with
-6516,877080,AAA,2014J,0.0,0.0,1.0,0.6693312128367284,This resource is similar to other resources that the student has interacted with
+6516,877066,AAA,2014J,0.05412621359223301,0.05881689146635144,1.0,0.7555717833001276,This resource was recommended because it is similar to other interacted-with resources
+6516,877069,AAA,2014J,0.024514563106796117,0.026184281545591236,1.0,0.7541599868165921,This resource was recommended because it is similar to other interacted-with resources
+6516,877087,AAA,2014J,0.02459546925566343,0.029968251322805176,1.0,0.7541599868165921,This resource was recommended because it is similar to other interacted-with resources
+6516,877075,AAA,2014J,0.13883495145631067,0.15790616405708863,1.0,0.7540883245100478,This resource was recommended because it is similar to other interacted-with resources
+6516,877037,AAA,2014J,0.021763754045307445,0.02523431774221355,0.0,0.7535802354665471,This resource was recommended because it is used by similar students
+6516,877038,AAA,2014J,0.02669902912621359,0.02869257502927583,0.0,0.7518626351701961,This resource was recommended because it is used by similar students
+6516,877032,AAA,2014J,0.06990291262135923,0.08263724027432354,0.0,0.7513288554120858,This resource was recommended because it is used by similar students
+6516,877085,AAA,2014J,0.5715210355987055,0.6070357933140315,1.0,0.7509581594343254,This resource was recommended because it is similar to other interacted-with resources
+6516,877036,AAA,2014J,0.08001618122977346,0.09270890827493532,0.0,0.7506079632554227,This resource was recommended because it is used by similar students
+6516,877076,AAA,2014J,0.5899676375404531,0.657698992288951,1.0,0.7502402107163766,This resource was recommended because it is similar to other interacted-with resources
+6516,877073,AAA,2014J,0.019741100323624597,0.02239974307884242,1.0,0.7452499062640312,This resource was recommended because it is similar to other interacted-with resources
+6516,877050,AAA,2014J,0.02087378640776699,0.021957317235149796,0.0,0.7323014977296044,This resource was recommended because it is used by similar students
+6516,877089,AAA,2014J,0.0,0.0,1.0,0.6693312128367281,This resource was recommended because it is similar to other interacted-with resources
+6516,877092,AAA,2014J,0.0,0.0,1.0,0.6693312128367281,This resource was recommended because it is similar to other interacted-with resources
+6516,877090,AAA,2014J,0.0,0.0,1.0,0.6693312128367281,This resource was recommended because it is similar to other interacted-with resources
+6516,877091,AAA,2014J,0.0,0.0,1.0,0.6693312128367281,This resource was recommended because it is similar to other interacted-with resources
+6516,877086,AAA,2014J,0.0,0.0,1.0,0.6693312128367281,This resource was recommended because it is similar to other interacted-with resources
+6516,877084,AAA,2014J,0.0,0.0,1.0,0.6693312128367281,This resource was recommended because it is similar to other interacted-with resources
+6516,877100,AAA,2014J,0.0,0.0,1.0,0.6693312128367281,This resource was recommended because it is similar to other interacted-with resources
+6516,877080,AAA,2014J,0.0,0.0,1.0,0.6693312128367281,This resource was recommended because it is similar to other interacted-with resources

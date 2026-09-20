@@ -15,12 +15,12 @@ def explain_recommendation(recommendation,popularity_weight=0.4,content_weight=0
     explanation = ""
 
     if highest_score == "popularity":
-        explanation = "This resource is frequently used by other students"
+        explanation = "This resource was recommended because it is frequently used by other students"
 
     if highest_score == "content":
-        explanation = "This resource is similar to other resources that the student has interacted with"
+        explanation = "This resource was recommended because it is similar to other interacted-with resources"
 
     if highest_score == "collaborative":
-        explanation = "This resource is used by students similar to the student"
+        explanation = "This resource was recommended because it is used by similar students"
 
     return explanation
