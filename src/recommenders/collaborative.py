@@ -1,29 +1,43 @@
-# for data storage
+# standard imports for data storage and similarity for collaborative/content based filtering
 import pandas as pd
-
-# for collaborative and content based filtering
 from sklearn.metrics.pairwise import cosine_similarity
 
-# recommender scores 2: collaborative filtering
-# input: student id to make targetted recommendations and interactions df to see similar students, output: dataframe with columns=resource id and collaborative filtering score
+
+# recommender scores function for collaborative filtering
+# input: student id to make targetted recommendations and interactions df to see similar students / output: dataframe with columns=resource id and collaborative filtering score
 def collaborative_scores(id_student, interaction_data):
 
-    #only provide recommendations within the student's already taken courses, dropped duplicates as the goal is to provide a list of taken courses
-    student_courses = interaction_data[interaction_data["id_student"]==id_student][["code_module","code_presentation"]].drop_duplicates()
+    # only provide recommendations within the student's already taken courses, dropped duplicates as the goal is to provide a list of taken courses
+    student_courses = interaction_data[interaction_data["id_student"] == id_student][
+        ["code_module", "code_presentation"]
+    ].drop_duplicates()
 
-    if(student_courses.empty):
-        #cold start users, cannot give recommendations because has no interactions with resources
+    # cold start users, cannot give recommendations because has no interactions with resources
+    if student_courses.empty:
         # empty dataframe, no collabarative score
-        return pd.DataFrame(columns=["id_site","code_module","code_presentation","activity_type","collaborative_score"])
+        return pd.DataFrame(
+            columns=[
+                "id_site",
+                "code_module",
+                "code_presentation",
+                "activity_type",
+                "collaborative_score",
+            ]
+        )
     else:
-        #otherwise only give recommendations from already taken courses
-        candidate_interactions = interaction_data.merge(student_courses, on=["code_module","code_presentation"], how="inner")
+        # otherwise only give recommendations from already taken courses
+        candidate_interactions = interaction_data.merge(
+            student_courses, on=["code_module", "code_presentation"], how="inner"
+        )
 
     # workflow code inspiration from: https://www.dasca.org/world-of-data-science/article/the-ultimate-guide-to-building-recommendation-systems-in-python
 
     # new dataframe where columns = resource id, rows = student id, values= clicks
     user_item_matrix = candidate_interactions.pivot_table(
-        values="total_resource_clicks", index="id_student", columns="id_site", fill_value=0
+        values="total_resource_clicks",
+        index="id_student",
+        columns="id_site",
+        fill_value=0,
     )
 
     # matrix returned here each value indicates level of similarity to student row
@@ -61,8 +75,8 @@ def collaborative_scores(id_student, interaction_data):
     scores = scores.reset_index()
     scores.columns = ["id_site", "collaborative_score"]
 
-    #only keep resources that have scores
-    scores = scores[scores["collaborative_score"]>0]
+    # only keep resources that have scores
+    scores = scores[scores["collaborative_score"] > 0]
 
     # normalize scores between 0 and 1 to be understandable, if condition prevents errors with divisons by 0 or empty
     if len(scores) > 0 and scores["collaborative_score"].max() > 0:
@@ -71,16 +85,29 @@ def collaborative_scores(id_student, interaction_data):
         )
 
     # include resource details like code module/presentation in recommender function
-    #first get list of resource details with no duplicates
-    resource_details = candidate_interactions[["id_site","code_module","code_presentation","activity_type"]].drop_duplicates()
+    # first get list of resource details with no duplicates
+    resource_details = candidate_interactions[
+        ["id_site", "code_module", "code_presentation", "activity_type"]
+    ].drop_duplicates()
 
-    #merge these details with the final resource scores
-    scores = scores.merge(resource_details, on="id_site",how="left")
+    # merge these details with the final resource scores
+    scores = scores.merge(resource_details, on="id_site", how="left")
 
-    #display highest score first, drop old indices for cleaner display
-    scores = scores.sort_values(by="collaborative_score", ascending=False).reset_index(drop=True)
+    # display highest score first, drop old indices for cleaner display
+    scores = scores.sort_values(by="collaborative_score", ascending=False).reset_index(
+        drop=True
+    )
 
-    #re-organize columns to be consistent with other recommender outputs
-    scores = scores[["id_site","code_module","code_presentation","activity_type","collaborative_score"]]
+    # re-organize columns to be consistent with other recommender outputs
+    scores = scores[
+        [
+            "id_site",
+            "code_module",
+            "code_presentation",
+            "activity_type",
+            "collaborative_score",
+        ]
+    ]
 
+    # return new dataframe of collaborative model recommendations
     return scores

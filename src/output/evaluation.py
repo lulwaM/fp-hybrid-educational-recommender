@@ -1,21 +1,21 @@
+# standard imports for data storage, numerical calculations, ML model metrics, and saving file safely
 import pandas as pd
 import numpy as np
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
+from pathlib import Path
 
+# import for each recommender model
 from src.recommenders import popularity
 from src.recommenders import collaborative
 from src.recommenders import content_based
 from src.recommenders import hybrid
 from src.recommenders import ranking
 
+# import for attaching explanation for model interpetability 
 from src.output import explanation
 
+# import for creating features needed by ML model
 from src.data_handling import feature_engineering
-
-# for ML model evaluation
-from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
-
-# for saving
-from pathlib import Path
 
 # global pandas settings to display dataframe in terminal without truncation
 # code copied from: https://builtin.com/data-science/pandas-show-all-columns
@@ -23,6 +23,8 @@ pd.set_option("display.max_columns", None)
 pd.set_option("display.max_colwidth", None)
 # end copied code
 
+# splits vle data into training/test history/future dataframes, 2 splits
+# input: entire vle data as dataframe, training and testing cutoff for filtering / output: 4 dataframes for training/test history/future vle data
 def ml_temporal_split(vle_data, training_cutoff,test_cutoff):
 
     # split 1: for training dataset
@@ -30,13 +32,16 @@ def ml_temporal_split(vle_data, training_cutoff,test_cutoff):
     training_future_vle = vle_data[(vle_data["date"]> training_cutoff) & (vle_data["date"]<=test_cutoff)].copy()
 
     # split 2: for test dataset
-    # NOTE: history available for full recommendations
+    # NOTE: history available for full recommendations, 3/4 of data
     test_history_vle = vle_data[vle_data["date"]<=test_cutoff].copy()
-    # untouched future (final target)
+    # untouched future (final target), 1/4 of data
     test_future_vle = vle_data[vle_data["date"]>test_cutoff].copy()
 
+    # return all new filtered vle dataframes
     return (training_history_vle,training_future_vle,test_history_vle,test_future_vle)
 
+# helper function to return grouped/new features of vle data as new dataframe for interactions
+# input: entire vle data as dataframe / output: interaction data dataframe with new features and grouping
 def aggregate_interaction_data(vle_data):
     #SAME AS PREPROCESSING STEP for interaction data
     #code inspired by: https://www.kaggle.com/code/veenajoe/veena-vit-project-msc-ds-june-2026#4.2-Aggregating-students-based-on-id
@@ -47,13 +52,18 @@ def aggregate_interaction_data(vle_data):
     interaction_data = vle_data.groupby(["id_student","code_module","code_presentation","id_site","activity_type"]).agg(total_resource_clicks=("sum_click","sum"),first_used=("date","min"),last_used=("date","max")).reset_index()
 
     # end inspired code
-
+    
+    # also derive feature of duration of clicks from aggregated data
     interaction_data["click_duration"] = interaction_data["last_used"] - interaction_data["first_used"]
 
+    # return new dataframe, more useful for recommendation models
     return interaction_data
 
+# splits vle data into history/future based on cutoff day, 1 split
+# input: entire vle data as dataframe, cutoff day for filtering / output: history/future aggregated vle data as interactions dataframe
 def temporal_split(vle_data,cutoff_day):
 
+    # filter history/future according to cutoff day, create copy instead of direct modification (good coding practice)
     history_vle = vle_data[vle_data["date"]<=cutoff_day].copy()
     future_vle = vle_data[vle_data["date"]> cutoff_day].copy()
 
@@ -61,11 +71,14 @@ def temporal_split(vle_data,cutoff_day):
     history_interactions = aggregate_interaction_data(history_vle)
     future_interactions = aggregate_interaction_data(future_vle)
 
-    #to store in 2 separate variables during evaluaton
+    #return to store in 2 separate variables during evaluation
     return (history_interactions, future_interactions)
 
-#KEY EVALUATION METRICS, input is pandas series of relevant/recommended id of resources
-#code copied from: https://giorgi.tech/blog/offline-metrics-for-recommender-systems/
+#KEY EVALUATION METRICS:
+# #code copied from: https://giorgi.tech/blog/offline-metrics-for-recommender-systems/
+
+# calculates precision of recommendations according to relevant/recommeneded resources, one way to measure recommender performance 
+# input: pandas series of relevant items (interacted with in future), recommended id of resources, k number of recommendations / output: precision value
 def precision_k(relevant, recommended,k):
 
     #protect against k error
@@ -79,6 +92,8 @@ def precision_k(relevant, recommended,k):
     # measures number of relevant items in k / total number of items in k
     return len(set(relevant).intersection(recommended[:k])) /k
 
+# calculates recall of recommendations according to relevant/recommeneded resources, one way to measure recommender performance 
+# input: pandas series of relevant items (interacted with in future), recommended id of resources, k number of recommendations / output: recall value
 def recall_k(relevant, recommended, k):
 
     #protect against k error
@@ -89,32 +104,34 @@ def recall_k(relevant, recommended, k):
     if(len(relevant)==0):
         return 0
 
-    # measures number of relevant items in k / total number of relevant items
+    # measures number of relevant items in k / total number of relevant items (DIFFERENT DENOMINATOR)
     return len(set(relevant).intersection(recommended[:k])) / len(relevant)
-
 #end copied code
 
-# derived from well known formula, must name it helper to not clash with existing sci-kitlearn f1_score function
+# calculates f1 score of recommendations according to relevant/recommeneded resources, one way to measure recommender performance 
+# input: known precision and recall value of / output: precision value
 def f1_score_helper(precision,recall):
+
     #protect against divison by zero error in denominator
     if((precision+recall)==0):
         return 0
 
+    # derived from well known formula, must name it helper to not clash with existing sci-kitlearn f1_score function
     return 2 * ((precision*recall)/(precision+recall))
 
-#function for random model to act as baseline to compare model performances
+#creates random recommender model to act as baseline to compare model performances
+# input: student id to generate recommendations for, interaction data to filter according to student course / output: dataframe of recommendations with student + resource + score info
 def random_scores(id_student, interaction_data):
 
     #only provide recommendations within the student's already taken courses, dropped duplicates as the goal is to provide a list of taken courses
     student_courses = interaction_data[interaction_data["id_student"]==id_student][["code_module","code_presentation"]].drop_duplicates()
 
-    if(student_courses.empty):
         #cold start users, give recommendations from all modules
+    if(student_courses.empty):
         candidate_interactions = interaction_data
     else:
         #otherwise only give recommendations from already taken courses
         candidate_interactions = interaction_data.merge(student_courses, on=["code_module","code_presentation"], how="inner")
-
 
     #possible recommendations for resources with required info, no duplicates
     scores = candidate_interactions[["id_site","code_module","code_presentation","activity_type"]].drop_duplicates().copy()
@@ -133,29 +150,31 @@ def random_scores(id_student, interaction_data):
     #display highest score first, drop old indices for cleaner display
     scores = scores.sort_values(by="random_score", ascending=False).reset_index(drop=True)
 
+    # return new dataframe of random model recommendations
     return scores
 
-#USED FOR SINGLE STUDENT EVALUATION
+#evaluating baseline models for single student as demo / initial evaluation method
+# input: history and future interactions based on temporal split, resource data for all possible resources, evaluated student id, k number of recommendations / no output, printing metrics on terminal
 def evaluate_baseline_models_single(history_interactions,future_interactions,resource_data,evaluated_student,k):
 
-    #items from interactions, returns series
+    #items from interactions, returns series for single student's interactions
     history_items = history_interactions[history_interactions["id_student"]==evaluated_student]["id_site"]
     future_items = future_interactions[future_interactions["id_student"]==evaluated_student]["id_site"]
 
     #removed used resources in history from future items, as goal is to recommend new items, filter series
     relevant_items = future_items[~future_items.isin(history_items)].unique()
 
-    #evaluate on history data only
+    #evaluate on history data only, obtain scores
     eval_popularity_recs = popularity.popularity_scores(evaluated_student,history_interactions)
     eval_collaborative_recs = collaborative.collaborative_scores(evaluated_student,history_interactions)
     #note that resource data is not leaking, its simply listing the resources
     eval_content_recs = content_based.content_scores(evaluated_student,resource_data,history_interactions)
     eval_random_recs = random_scores(evaluated_student,history_interactions)
 
-    #for fixed weights hybrid model
+    #for fixed weights hybrid model, must supply scores from all recommender models
     eval_hybrid_recs = hybrid.hybrid_scores(eval_popularity_recs,eval_content_recs,eval_collaborative_recs)
 
-    #first for popularity recommender
+    #first for popularity recommender, print k recommendations + evaluation metrics scores
     popularity_recommended_items = eval_popularity_recs["id_site"].head(k)
     print("Popularity Model Evaluation:")
 
@@ -168,7 +187,7 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
     popularity_f1 = f1_score_helper(precision=popularity_precision,recall=popularity_recall)
     print("F1 = ",popularity_f1)
 
-    #second is collaborative model
+    #second is collaborative model, print k recommendations + evaluation metrics scores
     collaborative_recommended_items = eval_collaborative_recs["id_site"].head(k)
     print("\nCollaborative Model Evaluation:")
 
@@ -181,7 +200,7 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
     collaborative_f1 = f1_score_helper(precision=collaborative_precision,recall=collaborative_recall)
     print("F1 = ",collaborative_f1)
 
-    #next is content based model
+    #next is content based model, print k recommendations + evaluation metrics scores
     content_recommended_items = eval_content_recs["id_site"].head(k)
     print("\nContent-based Model Evaluation:")
 
@@ -194,7 +213,7 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
     content_f1 = f1_score_helper(precision=content_precision,recall=content_recall)
     print("F1 = ",content_f1)
 
-    #next is hybrid fixed weights model 
+    #next is hybrid fixed weights model, print k recommendations + evaluation metrics scores
     hybrid_recommended_items = eval_hybrid_recs["id_site"].head(k)
     print("\nHybrid Model Evaluation:")
 
@@ -207,7 +226,7 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
     hybrid_f1 = f1_score_helper(precision=hybrid_precision,recall=hybrid_recall)
     print("F1 = ",hybrid_f1)
 
-    #final is random model (for baseline)
+    #final is random model (for baseline), print k recommendations + evaluation metrics scores
     random_recommended_items = eval_random_recs["id_site"].head(k)
     print("\nRandom Model Evaluation:")
 
@@ -223,11 +242,12 @@ def evaluate_baseline_models_single(history_interactions,future_interactions,res
     #new: also adding hybrid model explanations, default weights, note that axis=1 to apply to each recommendation row 
     eval_hybrid_recs["hybrid_explanation"] = eval_hybrid_recs.apply(explanation.explain_recommendation,axis=1)
 
-    #finally printing all top-K recommendations with all scores + explanations
+    #finally printing hybrid top-K recommendations with all scores + explanations
     print(eval_hybrid_recs.head(k))
 
-#USED FOR OVERALL EVALUATION, all eligible students
-#note that resource data required for content based filtering
+
+#hold out validation evaluation for all eligible students with baseline models
+# input: history and future interactions based on temporal split, resource data for all possible resources, evaluated student id, k number of recommendations, save data + save summary boolean flags / output: 2 data for individual results and summary
 def evaluate_baseline_models_overall(history_interactions, future_interactions,resource_data,k, saveData=True, saveSummary=True):
 
     #get dataframe of non-duplicate students in historica and future interactions separately
@@ -237,9 +257,7 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
     # only evaluate students with future interactions to evaluate via inner join
     evaluated_students = historical_students.merge(future_students, on=["id_student","code_module","code_presentation"],how="inner")
 
-    #for 20 students check
-    # evaluated_students = evaluated_students.sample(100)
-
+    # initialize array of results for all models
     popularity_results = []
     collaborative_results = []
     content_results = []
@@ -253,9 +271,9 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
         #only print after every 100 loops, prevents heavy console logging
         if(index % 100 == 0):
             print("evaluating:",index)
-
     #end inspired code
-        #items from interactions, returns series
+
+        #items from interactions, returns series for single student's interactions
         history_items = history_interactions.loc[(history_interactions["id_student"]==evaluated_student["id_student"]) & 
                                                  (history_interactions["code_module"]==evaluated_student["code_module"]) & 
                                                  (history_interactions["code_presentation"]==evaluated_student["code_presentation"]),"id_site"]
@@ -264,7 +282,7 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
                                                  (future_interactions["code_module"]==evaluated_student["code_module"]) & 
                                                  (future_interactions["code_presentation"]==evaluated_student["code_presentation"]),"id_site"]
 
-        #removed used resources in history from future items, as goal is to recommend new items, filter series
+        #removed used resources in history from future items, as goal is to recommend new items, filter series. relevant items used in ML metrics
         relevant_items = future_items[~future_items.isin(history_items)].unique()
 
         #prevents divison by 0 error
@@ -283,41 +301,41 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
         eval_random_recs = random_scores(evaluated_student["id_student"],history_interactions)
         eval_random_recs = eval_random_recs[(eval_random_recs["code_module"]==evaluated_student["code_module"]) & (eval_random_recs["code_presentation"]==evaluated_student["code_presentation"])].copy()
 
-        #for hybrid model
+        #for hybrid model, compute scores and filter to specific student-course record
         eval_hybrid_recs = hybrid.hybrid_scores(eval_popularity_recs,eval_content_recs,eval_collaborative_recs)
         eval_hybrid_recs = eval_hybrid_recs[(eval_hybrid_recs["code_module"]==evaluated_student["code_module"]) & (eval_hybrid_recs["code_presentation"]==evaluated_student["code_presentation"])].copy()
 
-        #first for popularity recommender
+        #first for popularity recommender, obtain k recommendations and compute their ML metrics
         popularity_recommended_items = eval_popularity_recs["id_site"].head(k)
         popularity_precision = precision_k(relevant_items,popularity_recommended_items,k)
         popularity_recall = recall_k(relevant_items,popularity_recommended_items,k)
         popularity_f1 = f1_score_helper(precision=popularity_precision,recall=popularity_recall)
 
-        #second is collaborative model
+        #second is collaborative model, obtain k recommendations and compute their ML metrics
         collaborative_recommended_items = eval_collaborative_recs["id_site"].head(k)
         collaborative_precision = precision_k(relevant_items,collaborative_recommended_items,k)
         collaborative_recall = recall_k(relevant_items,collaborative_recommended_items,k)
         collaborative_f1 = f1_score_helper(precision=collaborative_precision,recall=collaborative_recall)
 
-        #next is content based model
+        #next is content based model, obtain k recommendations and compute their ML metrics
         content_recommended_items = eval_content_recs["id_site"].head(k)
         content_precision = precision_k(relevant_items,content_recommended_items,k)
         content_recall = recall_k(relevant_items,content_recommended_items,k)
         content_f1 = f1_score_helper(precision=content_precision,recall=content_recall)
 
-        #next is hybrid model
+        #next is hybrid model, obtain k recommendations and compute their ML metrics
         hybrid_recommended_items = eval_hybrid_recs["id_site"].head(k)
         hybrid_precision = precision_k(relevant_items,hybrid_recommended_items,k)
         hybrid_recall = recall_k(relevant_items,hybrid_recommended_items,k)
         hybrid_f1 = f1_score_helper(precision=hybrid_precision,recall=hybrid_recall)
 
-        #last is random for comparison
+        #last is random for comparison, obtain k recommendations and compute their ML metrics
         random_recommended_items = eval_random_recs["id_site"].head(k)
         random_precision = precision_k(relevant_items,random_recommended_items,k)
         random_recall = recall_k(relevant_items,random_recommended_items,k)     
         random_f1 = f1_score_helper(precision=random_precision,recall=random_recall)
 
-        #append to results for each baseline
+        #append to individual results for each baseline, the identifiers + ML metrics for each model
         popularity_results.append({"id_student":evaluated_student["id_student"],
                                    "code_module": evaluated_student["code_module"],
                                    "code_presentation": evaluated_student["code_presentation"],
@@ -358,6 +376,7 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
 
     #create summary of results for each baseline
     summary = {
+        # key = model name, value = macro unweighted average of ML metric
         "popularity": {
             "precision": popularity_results_df["precision"].mean(),
             "recall": popularity_results_df["recall"].mean(),
@@ -389,6 +408,7 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
     results = {"popularity":popularity_results_df,"collaborative":collaborative_results_df,
                "content":content_results_df, "hybrid":hybrid_results_df, "random": random_results_df}
 
+    # check boolean flag
     if saveData == True:
         #saving each baseline individual results in csv files for storage,removing index as they hold no meaning
         results["popularity"].to_csv("outputs/baselines/popularity_results.csv",index=False)
@@ -397,6 +417,7 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
         results["hybrid"].to_csv("outputs/baselines/hybrid_results.csv",index=False)
         results["random"].to_csv("outputs/baselines/random_results.csv",index=False)
 
+    # check boolean flag
     if saveSummary == True:
     #also saving summary in a csv file for storage, but must convert to dataframe first to use the to_csv pandas method
 
@@ -405,24 +426,28 @@ def evaluate_baseline_models_overall(history_interactions, future_interactions,r
 
             save_recommender_summary(summary=metrics,recommender=recommender)   
 
+    # return objects with individual results and overall summary
     return (results,summary)
 
-# OVERALL CLASSIFIER PERFORMANCE, not top 20. it checks if task learned, if the model correctly classified used candidates (within candidates only, not all interactions)
-# checking against y test candidates rather than full interactions
+#classifier evaluation for ML models, checks if task learned, if the model correctly classified used candidates (within candidates only, not all interactions)
+# input: ML model object, X+y test data to compare ground truth with predictions, model type for prediction, file name to save / output: results dataframe with classifier metrics
 def evaluate_ML_classifier(model, X_test_data, y_test_data,model_type,file_name):
 
+    # compute relevance based on model type
     if model_type == 'random_forest':
-        # relevance score, get as single list for all recs
+        #probability function, get as single list for all recs
         relevance_scores = model.predict_proba(X_test_data)[:,1]
         predictions = model.predict(X_test_data)
 
     elif model_type == 'SVC':
+        # decision function, above 0 is classified as relevant (well known formula for SVC decision boundary)
         relevance_scores = model.decision_function(X_test_data)
         predictions = (relevance_scores>0).astype(int)
     else:
+        # error hnadling
         raise ValueError("Model type must be random_forest or SVC")
 
-    # all using sci kit learn's actual functions, not own helper functions
+    # compute classifier metrics, all using sci kit learn's actual functions, not own helper functions
     results = {
         "model": model_type,
         'classifier_precision': precision_score(y_true=y_test_data,y_pred=predictions),
@@ -436,11 +461,11 @@ def evaluate_ML_classifier(model, X_test_data, y_test_data,model_type,file_name)
     results_df = pd.DataFrame([results])
     results_df.to_csv(f"outputs/ML_classifier/{file_name}.csv",index=False)
 
+    # return results dataframe with classifier metrics
     return results
 
-# COMPARABLE RECOMMENDER PERFORMANCE TO BASELINES, out of the candidate records take the top 20 and check whether student used in ENTIRE future interactions
-# checking again interactions rather than y test candidates
-# as such, requires history/future interactions and also test_dataset for the student-course recommendation records
+#hold out validation recommender evaluation for ML models comparable to baselines, out of the candidate records take the top 20 and check whether student used in ENTIRE future interactions
+# input: ML model object, X test data to make rec predictions, test_dataset for student-course records, history+future interactions based on temporal split, model type for prediction, file name to save, save data + summary boolean flags / output: results dataframe for each student recs, summary for overall ML metrics
 def evaluate_ML_recommender(model, X_test_data, test_dataset,history_interactions,future_interactions, model_type='random_forest',k=20, file_name='random_forest_recommender_results',saveData=True,saveSummary=True):
 
     # extract needed info for recommendations from dataset
@@ -466,7 +491,7 @@ def evaluate_ML_recommender(model, X_test_data, test_dataset,history_interaction
             print("evaluating:",index)
 
     #end inspired code
-        #items from interactions, returns series
+        #items from interactions, returns series for single student's interactions
         history_items = history_interactions.loc[(history_interactions["id_student"]==evaluated_student["id_student"]) & 
                                                  (history_interactions["code_module"]==evaluated_student["code_module"]) & 
                                                  (history_interactions["code_presentation"]==evaluated_student["code_presentation"]),"id_site"]
@@ -491,7 +516,7 @@ def evaluate_ML_recommender(model, X_test_data, test_dataset,history_interaction
         # do ranking, ascending false to return highest first
         eval_ML_recs = eval_ML_recs.sort_values(by="ML_score",ascending=False)
 
-        # only top k
+        # extract only top k
         ML_recommended_items = eval_ML_recs["id_site"].head(k)
 
         # generate metric results
@@ -517,28 +542,34 @@ def evaluate_ML_recommender(model, X_test_data, test_dataset,history_interaction
             "f1": ML_results_df["f1"].mean(),
         }
 
+    # check boolean flag
     if saveData == True:
-
+        # save individual results to file 
         ML_results_df.to_csv(f"outputs/ML_recommender/{file_name}.csv",index=False)
 
+    # check boolean flag
     if saveSummary == True:
+        # call helper function to sve to summary with model type as file nmae
         save_recommender_summary(ML_summary,model_type)
 
+    # return 2 objects for individual student recs results and overall summary metrics
     return (ML_results_df,ML_summary)
 
-# add to summary file
+# helper function to add summary data of a recommender to overall recommender summary file
+# input: summary data to save, recommender name as identifier / no output, saved to file
 def save_recommender_summary(summary,recommender):
 
     # code to check if file exists copied from: https://mimo.org/tutorials/python/how-to-check-if-a-file-exists-in-python
     summary_path = Path("outputs/recommender_summary.csv")
     # end copied code
 
+    # read existing file
     if summary_path.exists():
         # read existing evaluation summary from baseline models, index is first column where model names held
         recommender_summary_df = pd.read_csv('outputs/recommender_summary.csv', index_col=0)
-
+    # create new file
     else:
-        # create empty with required columns
+        #  empty with required columns
         recommender_summary_df = pd.DataFrame(columns=['precision','recall','f1'])
 
 
@@ -548,7 +579,11 @@ def save_recommender_summary(summary,recommender):
     # overwrite old evaluation summary with updated one
     recommender_summary_df.to_csv(summary_path)
 
+# helper function to create ML recommender comparison from random forest and SVC as file
+# input: random forest and SVC summary data to save / no output, saved to file
 def save_ML_comparison_results(RF_summary, SVC_summary):
+
+    # construct object where key=ML model name, and value=inner object with ML recommender metrics
     comparison = {
         "random_forest": {
             "precision": RF_summary["precision"],
@@ -565,20 +600,23 @@ def save_ML_comparison_results(RF_summary, SVC_summary):
 
     #note that it is transposed so that the indices represent each model rather than the precision/recall values, easier to understand
     comparison_df = pd.DataFrame(comparison).T
-    # index included because it represents ML model type
+    # index included because it represents ML model type, saved with fixed file name because ML recommender comparison only exists for sample
     comparison_df.to_csv("outputs/ml_recommender_sample_comparison.csv")
 
-# for cross validation evaluation, basically follows the logic of sklearn's TimeSeriesSplit but manually (https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html)
+# for cross validation evaluation, basically follows the logic of sklearn's TimeSeriesSplit but manually, code inspiration: (https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html)
 
-# instead of passing history/future like in earlier evaluation of hold out, passing entire VLE to do separate split for each fold
+# temporal expanding window cross validation evaluation for baselines
+# input: vle data to do separate split for each fold, resource data for entire resource list, cutoff days to create folds, test size for fixed testing window, k top recommendations / output: individual results for each fold for each baseline, overall summary for each baseline and fold
 def temporal_cv_baselines(vle_data,resource_data,cutoff_days,test_size,k=20):
 
+    # initial array of results for baselines
     results = []
 
     # code structure of iteration inspired by: https://blog.devgenius.io/how-to-implement-time-series-cross-validation-in-python-1ce8aa6f9a6c
-    # keeping track of index and value via enumerate, setting index to start from 1 instead of 0 because fold 1/2/3 not fold 0/1/2
+    # iterate over folds, keeping track of index and value via enumerate, setting index to start from 1 instead of 0 because fold 1/2/3 not fold 0/1/2
     for fold, cutoff_day in enumerate(cutoff_days,start=1):
 
+        # for tracking purposes
         print("fold",fold)
 
         # final day for current fold
@@ -611,10 +649,10 @@ def temporal_cv_baselines(vle_data,resource_data,cutoff_days,test_size,k=20):
     # save overall results for all folds, removing idnex no meaning
     results_df.to_csv("outputs/cross_validation/baselines_cv_results.csv", index=False)
 
-    # get summary by averaging results across all folds, grouping by each recommender folds, extracting the metrics, and calling mean
+    # get summary by averaging results across all folds, grouping by each recommender folds, extracting the metrics, and calling mean (marco unweighted average)
     average_results = results_df.groupby("recommender")[["precision","recall","f1"]].mean()
 
-    # get std
+    # get std to check temporal variation of fold each metric
     std_results = results_df.groupby("recommender")[["precision","recall","f1"]].std()
 
     # rename columns for clarity
@@ -624,16 +662,19 @@ def temporal_cv_baselines(vle_data,resource_data,cutoff_days,test_size,k=20):
     # combine horizontally via concat
     summary_results = pd.concat([average_results,std_results],axis=1)
 
-    # save summary
+    # save summary to file
     summary_results.to_csv("outputs/cross_validation/baselines_cv_summary.csv")
 
     # return individual and overall results
     return results_df, summary_results
 
-# similar structure to baseline models with additional logic for training/testing cutoff
-# also note that entire datasets passed as parameter because needed in creating student features for learning model
+# end inspired code
+
+#  temporal expanding window cross validation evaluation for ML model (random forest), similar structure to baseline models with additional logic for training/testing cutoff
+# input: datasets with all processed datasets to generate features and recs, cutoff days to create folds, test size for fixed testing window, k top recommendations / output: individual results for each fold, overall summary for each fold
 def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
 
+    # initial array of results for ML model
     results = []
 
     # code structure of iteration inspired by: https://blog.devgenius.io/how-to-implement-time-series-cross-validation-in-python-1ce8aa6f9a6c
@@ -641,6 +682,7 @@ def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
     # DIFFERENCE FOR ML: each cutoff day refers to test cutoff, where test end > days > test cutofff are evaluated for predictions
     for fold, test_cutoff in enumerate(cutoff_days,start=1):
 
+        # for tracking purposes
         print("fold",fold)
 
         # final day for current fold
@@ -654,7 +696,7 @@ def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
         # restrict interactions to be max= test cutoff + test size
         fold_vle = datasets["vle_data"][datasets["vle_data"]["date"]<=test_end].copy()
 
-        # now follow exact same process of pipelien evaluation
+        # now follow exact same process of pipeline evaluation
 
         #1. this split for history/future already done by function call, where test history is everything < test cutoff and test future is test cutoff < test future <= test end by using fold vle
         (training_history_vle,training_future_vle,test_history_vle,test_future_vle) = ml_temporal_split(fold_vle,training_cutoff,test_cutoff)
@@ -675,15 +717,19 @@ def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
         test_dataset_path = Path(f"data/processed/cross_validation/ml_test_fold_{fold}.csv")
         # end copied code
 
+        # prevent crash if does not exist, read existing file
         if training_dataset_path.exists():
             training_dataset = pd.read_csv(training_dataset_path, dtype={'disability':'boolean'})
         else:
+            # create training dataset and save if not
             training_dataset = ranking.create_ml_dataset(training_history,training_future,datasets["resource_data"],training_student_features,k)
             training_dataset.to_csv(training_dataset_path, index=False)
 
+        # prevent crash if does not exist, read existing file
         if test_dataset_path.exists():
             test_dataset = pd.read_csv(test_dataset_path, dtype={'disability':'boolean'})
         else:
+            # create test dataset and save if not
             test_dataset = ranking.create_ml_dataset(test_history,test_future,datasets["resource_data"],test_student_features,k)
             test_dataset.to_csv(test_dataset_path, index=False)
 
@@ -697,6 +743,7 @@ def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
         # # @20 recommender results, must use interactions because checking recs across all interactions
         (ML_results,ML_summary) = evaluate_ML_recommender(ML_model,X_test_data=X_test,test_dataset=test_dataset,history_interactions=test_history,future_interactions=test_future,model_type=model_type,k=k,saveData=False,saveSummary=False)
 
+        # save fold data identifiers + ML metrics
         results.append({'fold':fold,
                         'test_cutoff': test_cutoff,
                         'training_cutoff': training_cutoff,
@@ -705,7 +752,6 @@ def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
                         'precision':ML_summary["precision"],
                         "recall":ML_summary["recall"],
                         "f1":ML_summary["f1"]})
-
     # end inspired code
 
     # once populated, convert to dataframe
@@ -714,12 +760,12 @@ def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
     # save overall results for all folds, removing idnex no meaning
     results_df.to_csv(f"outputs/cross_validation/ML_cv_{model_type}_results.csv", index=False)
 
-    # get summary by averaging, no need to group because all folds belong to single ML model recommender
+    # get summary by macro unweighted averaging, no need to group because all folds belong to single ML model recommender
     # must transpose after converting to dataframe because it is series to display nicely
     # code copied and adapted from: https://stackoverflow.com/questions/43517338/transpose-a-pandas-series
     average_results = results_df[["precision","recall","f1"]].mean().to_frame().T
 
-
+    # obtain std to see temporal variation
     std_results = results_df[["precision","recall","f1"]].std().to_frame().T
     # end adapted code
 
@@ -729,7 +775,6 @@ def temporal_cv_ML_model(datasets,cutoff_days,test_size,model_type,k=20):
 
     # use concat to combine horizontally in one row
     summary_results = pd.concat([average_results,std_results],axis=1)
-
 
     # save summary
     summary_results.to_csv(f"outputs/cross_validation/ML_cv_{model_type}_summary.csv",index=False)

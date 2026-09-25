@@ -1,31 +1,40 @@
-# for data storage
+# standard imports for data storage, similarity for collaborative/content based filtering, and vectorizer for resource text
 import pandas as pd
-
-# for collaborative and content based filtering
 from sklearn.metrics.pairwise import cosine_similarity
-
-# for content based filtering
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# recommender scores 3: content based filtering
+
+# recommender scores function for content based filtering
 # input: student id to make targetted recommendations, interactions df to see similar students, and resources df to view similar resources, output: dataframe with columns=resource id and content based filtering score
-def content_scores(id_student,resource_data, interaction_data):
+def content_scores(id_student, resource_data, interaction_data):
 
-    #only provide recommendations within the student's already taken courses, dropped duplicates as the goal is to provide a list of taken courses
-    student_courses = interaction_data[interaction_data["id_student"]==id_student][["code_module","code_presentation"]].drop_duplicates()
+    # only provide recommendations within the student's already taken courses, dropped duplicates as the goal is to provide a list of taken courses
+    student_courses = interaction_data[interaction_data["id_student"] == id_student][
+        ["code_module", "code_presentation"]
+    ].drop_duplicates()
 
-    if(student_courses.empty):
-        #cold start users, cannot give recommendations because has no interactions with resources
+    # cold start users, cannot give recommendations because has no interactions with resources
+    if student_courses.empty:
         # empty dataframe, no content score
-        return pd.DataFrame(columns=["id_site","code_module","code_presentation","activity_type","content_score"])
+        return pd.DataFrame(
+            columns=[
+                "id_site",
+                "code_module",
+                "code_presentation",
+                "activity_type",
+                "content_score",
+            ]
+        )
     else:
-        #otherwise only give recommendations from already taken courses
+        # otherwise only give recommendations from already taken courses
+        candidate_interactions = interaction_data.merge(
+            student_courses, on=["code_module", "code_presentation"], how="inner"
+        )
 
-        candidate_interactions = interaction_data.merge(student_courses, on=["code_module","code_presentation"], how="inner")
-
-        #must avoid duplicate candidate resources based on id
-        candidate_resources = resource_data.merge(student_courses, on=["code_module","code_presentation"], how="inner").drop_duplicates(subset=["id_site"])
-
+        # must avoid duplicate candidate resources based on id
+        candidate_resources = resource_data.merge(
+            student_courses, on=["code_module", "code_presentation"], how="inner"
+        ).drop_duplicates(subset=["id_site"])
 
     # text conversion code inspiration from: https://medium.com/@sumanadhikari/building-a-movie-recommendation-engine-using-scikit-learn-8dbb11c5aa4b
 
@@ -42,11 +51,15 @@ def content_scores(id_student,resource_data, interaction_data):
 
     # as mentioned previously, returns matrix so convert to dataframe for easier access (both index and columns are resource id because we are comparing resources only)
     content_similarity_df = pd.DataFrame(
-        content_similarity, index=candidate_resources["id_site"], columns=candidate_resources["id_site"]
+        content_similarity,
+        index=candidate_resources["id_site"],
+        columns=candidate_resources["id_site"],
     )
 
     # obtain used resources row of data from student id filtering, only select the resource id column UNIQUE values (could have multiple interactions with same resource)
-    used_resources = candidate_interactions[candidate_interactions["id_student"] == id_student]["id_site"]
+    used_resources = candidate_interactions[
+        candidate_interactions["id_student"] == id_student
+    ]["id_site"]
     used_resources = used_resources.unique()
 
     # start with empty content based scores, will populate in for loop
@@ -71,8 +84,8 @@ def content_scores(id_student,resource_data, interaction_data):
     scores = scores.reset_index()
     scores.columns = ["id_site", "content_score"]
 
-    #only keep resources that have scores
-    scores = scores[scores["content_score"]>0]
+    # only keep resources that have scores
+    scores = scores[scores["content_score"] > 0]
 
     # normalize scores between 0 and 1 to be understandable, if condition prevents errors with divisons by 0 or empty
     if len(scores) > 0 and scores["content_score"].max() > 0:
@@ -81,16 +94,29 @@ def content_scores(id_student,resource_data, interaction_data):
         )
 
     # include resource details like code module/presentation in recommender function
-    #first get list of resource details with no duplicates
-    resource_details = candidate_resources[["id_site","code_module","code_presentation","activity_type"]].drop_duplicates()
+    # first get list of resource details with no duplicates
+    resource_details = candidate_resources[
+        ["id_site", "code_module", "code_presentation", "activity_type"]
+    ].drop_duplicates()
 
-    #merge these details with the final resource scores
-    scores = scores.merge(resource_details, on="id_site",how="left")
+    # merge these details with the final resource scores
+    scores = scores.merge(resource_details, on="id_site", how="left")
 
-    #display highest score first, drop old indices for cleaner display
-    scores = scores.sort_values(by="content_score", ascending=False).reset_index(drop=True)
+    # display highest score first, drop old indices for cleaner display
+    scores = scores.sort_values(by="content_score", ascending=False).reset_index(
+        drop=True
+    )
 
-    #re-organize columns to be consistent with other recommender outputs
-    scores = scores[["id_site","code_module","code_presentation","activity_type","content_score"]]
+    # re-organize columns to be consistent with other recommender outputs
+    scores = scores[
+        [
+            "id_site",
+            "code_module",
+            "code_presentation",
+            "activity_type",
+            "content_score",
+        ]
+    ]
 
+    # return new dataframe of content based model recommendations
     return scores

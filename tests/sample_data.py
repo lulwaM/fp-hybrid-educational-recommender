@@ -1,14 +1,13 @@
-# for data storage
+# standard imports for data storage and numerical calculations
 import pandas as pd
-
-# for np.nan simulation
 import numpy as np
 
 
-# creating dataframe for each csv file in dataset, copied from files
+# creating small dataframe for each csv file in dataset, simulates OULAD dataset CSV files
+# no input / output: datasets object where key=dataset name and value=dataframe for testing without repeating code
 def create_datasets():
 
-    #1. 3 assessment records belonging to the 2 courses, has missing values to test preprocessing funjctions
+    # 1. 3 assessment records belonging to the 2 courses, has missing values to test preprocessing funjctions
     assessments = pd.DataFrame(
         {
             "code_module": ["AAA", "BBB", "AAA"],
@@ -20,7 +19,7 @@ def create_datasets():
         }
     )
 
-    #2. 2 courses
+    # 2. 2 courses with required columns
     courses = pd.DataFrame(
         {
             "code_module": ["AAA", "BBB"],
@@ -29,7 +28,7 @@ def create_datasets():
         }
     )
 
-    #3. 4 student assessment records belonging to 3 students and 2 possible assessments, has missing data to evaluate preprocessing functions
+    # 3. 4 student assessment records belonging to 3 students and 2 possible assessments, has missing data to evaluate preprocessing functions
     student_assessment = pd.DataFrame(
         {
             "id_assessment": ["1001", "2001", "1002", "1001"],
@@ -40,7 +39,7 @@ def create_datasets():
         }
     )
 
-    #4. 3 student records, must match the codem odule with the taken assessments
+    # 4. 3 student records, must match the code module with the taken assessments
     student_info = pd.DataFrame(
         {
             "code_module": ["AAA", "BBB", "AAA"],
@@ -48,60 +47,62 @@ def create_datasets():
             "id_student": [1, 2, 3],
             "gender": ["M", "F", "M"],
             "region": ["East Anglian Region", "Wales", "Scotland"],
-            "highest_education": ["HE Qualification", "Lower Than A Level", "A Level or Equivalent"],
+            "highest_education": [
+                "HE Qualification",
+                "Lower Than A Level",
+                "A Level or Equivalent",
+            ],
             "imd_band": ["90-100%", "30-40%", np.nan],
             "age_band": ["55<=", "35-55", "0-35"],
-            "num_of_prev_attempts": [1,0,0],
+            "num_of_prev_attempts": [1, 0, 0],
             "studied_credits": [60, 240, 60],
             "disability": ["Y", "N", "N"],
             "final_result": ["Pass", "Withdrawn", "Fail"],
         }
-    
     )
 
-    #5. 3 student registration belonging to the 3 students, missing values to test preprocessing
+    # 5. 3 student registration belonging to the 3 students, missing values to test preprocessing
     student_registration = pd.DataFrame(
         {
             "code_module": ["AAA", "BBB", "AAA"],
             "code_presentation": ["2013J", "2013B", "2013J"],
             "id_student": [1, 2, 3],
-            "date_registration": [-92,np.nan,20],
-            "date_unregistration": [3,-10,np.nan],   
+            "date_registration": [-92, np.nan, 20],
+            "date_unregistration": [3, -10, np.nan],
         }
     )
 
-    #6. 5 student VLe interactions belonging to the 3 students
+    # 6. 5 student VLe interactions belonging to the 3 students
     student_vle = pd.DataFrame(
         {
-            "code_module": ["AAA", "BBB", "AAA","AAA","AAA"],
-            "code_presentation": ["2013J", "2013B", "2013J","2013J","2013J"],
-            "id_student": [1, 2, 3,1,3], 
-            "id_site": [101, 201, 101,102,103],
-            "date": [-10,5,3,2,1],
-            "sum_click": [5,14,12,4,3],   
+            "code_module": ["AAA", "BBB", "AAA", "AAA", "AAA"],
+            "code_presentation": ["2013J", "2013B", "2013J", "2013J", "2013J"],
+            "id_student": [1, 2, 3, 1, 3],
+            "id_site": [101, 201, 101, 102, 103],
+            "date": [-10, 5, 3, 2, 1],
+            "sum_click": [5, 14, 12, 4, 3],
         }
     )
 
-    #7. 4 VLE resources linked to the student VLE interactions
+    # 7. 4 VLE resources linked to the student VLE interactions
     vle = pd.DataFrame(
         {
-            "id_site": [101,102,103,201],
-            "code_module": ["AAA", "AAA","AAA","BBB"],
-            "code_presentation": ["2013J", "2013J","2013J","2013B"],
-            "activity_type": ["url", "oucontent", "url","subpage"], 
-            "week_from": [np.nan,np.nan,2,np.nan],
-            "week_to": [5,np.nan,26,23],   
+            "id_site": [101, 102, 103, 201],
+            "code_module": ["AAA", "AAA", "AAA", "BBB"],
+            "code_presentation": ["2013J", "2013J", "2013J", "2013B"],
+            "activity_type": ["url", "oucontent", "url", "subpage"],
+            "week_from": [np.nan, np.nan, 2, np.nan],
+            "week_to": [5, np.nan, 26, 23],
         }
     )
 
     # returned is a dictionary/object where key=dataset name value=pandas dataframe for it, exactly same as load dataset function
     return {
-        "assessments":assessments,
-        "courses":courses,
-        "student_assessment":student_assessment,
-        "student_info":student_info,
-        "student_registration":student_registration,
-        "student_vle":student_vle,
-        "vle":vle
+        "assessments": assessments,
+        "courses": courses,
+        "student_assessment": student_assessment,
+        "student_info": student_info,
+        "student_registration": student_registration,
+        "student_vle": student_vle,
+        "vle": vle,
     }
-
